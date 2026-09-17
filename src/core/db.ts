@@ -169,6 +169,7 @@ export function storeDiscordMessage(msg: DiscordMessage): void {
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(discord_message_id) DO UPDATE SET
       content = excluded.content,
+      timestamp = excluded.timestamp,
       attachments_json = excluded.attachments_json,
       updated_at = CURRENT_TIMESTAMP
   `);
@@ -204,6 +205,7 @@ export function batchStoreDiscordMessages(messages: DiscordMessage[]): number {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(discord_message_id) DO UPDATE SET
         content = excluded.content,
+        timestamp = excluded.timestamp,
         attachments_json = excluded.attachments_json,
         updated_at = CURRENT_TIMESTAMP
     `);

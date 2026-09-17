@@ -1,393 +1,183 @@
 <div align="center">
 
-# ⚡ Pulse
+# ⚡ Project Re-entry
 
-### AI-First Chat Companion — Audio Summaries for Discord, Telegram & X
+### Evidence-Grounded, Voice-Native Discord Conversation Re-entry Agent
 
-An invisible assistant that listens, filters out the noise, and drops a **30-second audio summary** on command.
+*«You don't need another summary. You need to know what happened while you were gone.»*
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js](https://img.shields.io/badge/Node.js-20%2B-green.svg)](https://nodejs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue.svg)](https://www.typescriptlang.org)
+[![Next.js](https://img.shields.io/badge/Next.js-14-black.svg)](https://nextjs.org)
+[![AssemblyAI](https://img.shields.io/badge/AssemblyAI-Voice_Agent_API-blueviolet.svg)](https://www.assemblyai.com)
 
 </div>
 
 ---
 
-## 🎯 The Problem
+## 🎯 The Thesis
 
-Group chats move too fast. You return to **dozens of unread messages**, chaotic voice notes, and buried PDF files. Catching up feels like a chore.
+High-volume Discord conversations move too fast. When you return after hours or days away, generic summaries fail to tell you what matters:
+- What decisions were actually made?
+- What tasks were assigned to you?
+- Where were you directly mentioned?
+- What blockers prevent your team from moving forward?
+- Where is the proof?
 
-## ✨ The Solution
+**Project Re-entry** reconstructs the exact context you need to re-enter the conversation. It extracts discrete, verifiable conversation events, computes what matters specifically to you, and allows you to converse naturally with an **AssemblyAI Voice Agent** capable of real-time interruption and deep source verification.
 
-Type `/catchup` in any group chat. Pulse drops a **30-second audio clip** summarizing the timeline, auto-generates a task board, and translates foreign voice notes — all in under 10 seconds.
-
----
-
-## 🚀 Features
-
-### 1. `/catchup` — Instant Audio Summaries
-- Summarizes 50–500 messages into a concise, spoken audio clip
-- Powered by **Xiaomi MiMo API** (or OpenAI-compatible endpoints) for intelligent summarization
-- Natural voice via **ElevenLabs** text-to-speech
-- Works across Discord, Telegram, and X
-- **Multiple Catchup Modes**: Tailor the tone of your summary:
-  - `standard`: Professional and concise
-  - `fun`: Highly energetic and humorous
-  - `roast`: Sarcastic and playfully mocking
-  - `story`: Epic bedtime story narration
-  - `urgent`: Rapid-fire, highly professional urgency
-  - `manager`: High-level executive view of progress and blockers
-  - `empathic`: Supportive tone highlighting team wins
-  - `for-me`: Highly personalized summary focusing strictly on tasks and mentions involving you
-- **Advanced Querying**:
-  - **Timeframes**: Ask for `/catchup 1hr` or use the Discord `timeframe` slash command option.
-  - **User Targeting**: Ask for `/catchup @username` to focus the summary heavily on one person.
-  - **Text-Only Mode**: Skip the audio and get a fast text breakdown (Telegram: `/catchup text`, Discord: `/catchup format:Text Only`).
-  - **Private Delivery**: Get the summary sent directly to your DMs instead of the public channel (Telegram: `/catchup private`, Discord: `/catchup delivery:Private (DM)`).
-  - **Contextual Thread Summaries**: Reply to any message with `/catchup` (or `@PulseBot summarize` in Discord) to summarize the conversation exactly from that point onward!
-
-### 2. 📅 Automated Daily Minutes (`/daily`)
-- Schedule a daily digest to be delivered to your group chat automatically.
-- Pulse drops a short audio summary alongside a detailed **Markdown meeting minutes** file containing action items, key discussions, and overall chat vibe.
-- **Opt-in commands**:
-  - Discord: `/daily enable:True time:18:00`
-  - Telegram: `/daily on 18:00`
-
-### 3. 🗣️ Voice Conversation Agent
-- Pulse acts as a fully conversational AI participant.
-- **Direct Voice Replies:** Reply to Pulse's audio summary with your own voice note to ask follow-up questions!
-- Pulse remembers the chat context and responds with a natural, generated voice message.
-
-### 4. 📋 Auto-Generated Task Boards
-- Extracts action items from conversations and documents
-- Assigns tasks to people mentioned in the chat
-- Tracks deadlines and priorities
-- Displays as a formatted checklist alongside the audio summary
-
-### 5. 🌍 Real-Time Audio Translation
-- Detects non-English voice notes automatically
-- Transcribes natively via **Gemini 1.5 Flash**
-- Translates to your configured language
-- Replies with both text and audio translation
+Every single factual claim is traceable to an authentic Discord message permalink.
 
 ---
 
-## 📦 Quick Start
+## ✨ Key Capabilities
 
-### Prerequisites
+1. **Layer 1: Real-time Discord Ingestion & Historical Backfill**
+   - Ingests real messages directly from the Discord Gateway API.
+   - Captures author names, avatars, timestamps, reply references, thread IDs, attachments, and permalinks (`https://discord.com/channels/{guild}/{channel}/{msg}`).
+   - Backfills conversation history across any accessible channel on demand.
 
-- **Node.js** 20+ ([download](https://nodejs.org))
-- **ffmpeg** ([download](https://ffmpeg.org)) — *included in Docker setup*
-- API keys for:
-  - [Xiaomi MiMo](https://token-plan-cn.xiaomimimo.com) (or any OpenAI-compatible API) for Summarization
-  - [ElevenLabs](https://elevenlabs.io) (Text-to-Speech)
-- **Discord**: Channel commands (`/catchup`)
-- **Telegram**: Group commands (`/catchup fun 1hr`)
-- **X (Twitter)**: Mention threads (`@PulseBot summary`)
+2. **Layer 2: Grounded Conversation Event Extraction**
+   - Automatically identifies:
+     - `decision`: Product agreements and architecture decisions.
+     - `task`: Action items assigned or claimed.
+     - `deadline`: Deliverable commitments and milestones.
+     - `blocker`: Critical impediments and errors.
+     - `question`: Inquiries awaiting team response.
+     - `mention`: Direct user pings (`<@userId>`).
+     - `important_update`: Key announcements and state changes.
+   - Strictly labels confidence: `CONFIRMED` or `INFERRED`.
+   - Never hallucinates facts; every event links to a verified message ID.
 
-## 🚀 Setup & Installation
+3. **Layer 3: Personalized User Relevance**
+   - Calculates priority for the authenticated user based on real interactions:
+     - Direct mentions (1.0)
+     - Assigned tasks (0.95)
+     - Replies to user messages (0.90)
+     - Contextual blockers and decisions (0.75 - 0.80)
 
-### 1. The Core Engine (Bot)
-1. Clone the repository and install dependencies:
-   ```bash
-   git clone https://github.com/yourusername/pulse.git
-   cd pulse
-   npm install
-   ```
-2. Copy the `.env.example` to `.env` and add your AI keys (MiMo & ElevenLabs).
-3. Add your Bot tokens for Discord, Telegram, and X.
+4. **AssemblyAI Voice Agent API (Full-Duplex Voice)**
+   - Single-connection WebSocket (`wss://agents.assemblyai.com/v1/ws`) for 24 kHz PCM speech input, reasoning, and speech output.
+   - **Barge-in / Natural Interruption**: Interrupt the agent mid-speech (*"Wait, which one affects me?"*); the agent stops and responds immediately.
+   - **Zero Secret Leakage**: Browser connects using an ephemeral single-use token minted server-side via `POST /api/voice/token`.
 
-### 2. The Web Dashboard (Identity Hub)
-Pulse includes a sleek Next.js dashboard where users can link their X and Telegram accounts to route summaries cross-platform.
-1. Navigate to the web folder:
-   ```bash
-   cd web
-   npm install
-   ```
-2. Set up your OAuth credentials in `.env` (Google and Twitter).
-3. Start the dashboard:
-   ```bash
-   npm run dev
-   ```
-   *Visit `http://localhost:3000` to log in and link your accounts!*
+5. **Voice Tools with Evidence Grounding**
+   - `get_catchup_context`: Delivers current channel briefing.
+   - `search_conversation`: Searches stored Discord messages.
+   - `get_source`: Retrieves exact original Discord message and jump URL.
+   - `create_task`: Task integration boundary (fails honestly if no task backend is connected).
 
-## 🎮 Running Pulse
-
-Start the core engine for your configured platforms:
-```bash
-npm start
-```MIMO_API_KEY=your_mimo_api_key
-MIMO_BASE_URL=https://token-plan-cn.xiaomimimo.com/v1
-MIMO_MODEL=mimo-v2.5-pro
-ELEVENLABS_API_KEY=your_elevenlabs_key
-ELEVENLABS_VOICE_ID=your_voice_id
-
-# Choose which platforms to run
-ENABLED_PLATFORMS=discord,telegram,x
-
-# Discord
-DISCORD_TOKEN=your_token
-DISCORD_CLIENT_ID=your_client_id
-
-# Telegram
-TELEGRAM_BOT_TOKEN=your_bot_token
-
-# X (Twitter) (requires a dedicated user account)
-X_USERNAME=pulsebot
-X_PASSWORD=password123
-X_EMAIL=pulsebot@example.com
-```
-
-4. Start the engine:
-```bash
-npm start
-```
-
-### Option 1: Docker (Recommended)
-
-```bash
-# Clone the repository
-git clone https://github.com/yourusername/pulse.git
-cd pulse
-
-# Configure environment
-cp .env.example .env
-# Edit .env with your API keys and platform tokens
-
-# Start
-docker-compose up -d
-
-# View logs
-docker-compose logs -f
-```
-
-### Option 2: Manual Setup
-
-```bash
-# Clone the repository
-git clone https://github.com/yourusername/pulse.git
-cd pulse
-
-# Install dependencies
-npm install
-
-# Configure environment
-cp .env.example .env
-# Edit .env with your API keys and platform tokens
-
-# Start in development mode
-npm run dev
-
-# Or build and run in production
-npm run build
-npm start
-```
-
----
-
-## 🔧 Platform Setup
-
-### Discord
-
-1. Go to the [Discord Developer Portal](https://discord.com/developers/applications)
-2. Click **New Application** → name it "Pulse"
-3. Go to **Bot** → Click **Reset Token** → Copy the token
-4. Under **Privileged Gateway Intents**, enable:
-   - ✅ Message Content Intent
-5. Go to **OAuth2** → **URL Generator**:
-   - Scopes: `bot`, `applications.commands`
-   - Permissions: `Send Messages`, `Read Message History`, `Attach Files`, `Use Slash Commands`
-6. Copy the generated URL and invite the bot to your server
-7. Add to `.env`:
-   ```
-   DISCORD_TOKEN=your-bot-token
-   DISCORD_CLIENT_ID=your-application-id
-   ENABLED_PLATFORMS=discord
-   ```
-8. Register slash commands:
-   ```bash
-   npm run deploy:discord
-   ```
-
-### Telegram
-
-1. Open Telegram, search for [@BotFather](https://t.me/BotFather)
-2. Send `/newbot` and follow the prompts
-3. Copy the bot token
-4. **Critical:** Disable Privacy Mode:
-   - Send `/mybots` → Select your bot → **Bot Settings** → **Group Privacy** → **Turn off**
-5. Add the bot to your group chat
-   - ⚠️ If you changed privacy mode after adding, **remove and re-add** the bot
-6. Add to `.env`:
-   ```
-   TELEGRAM_BOT_TOKEN=your-bot-token
-   ENABLED_PLATFORMS=telegram
-   ```
-
-> **Note:** Telegram bots cannot read historical messages. The bot must be in the group to accumulate messages before `/catchup` produces meaningful results.
-
-
-
-## ⚙️ Environment Variables
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `MIMO_API_KEY` | ✅ | — | Primary AI provider key (Xiaomi MiMo — free) |
-| `MIMO_BASE_URL` | ❌ | `https://token-plan-cn.xiaomimimo.com/v1` | Custom OpenAI-compatible base URL |
-| `MIMO_MODEL` | ❌ | `mimo-v2.5-pro` | Model to use for summarization |
-| `OPENCODE_API_KEY` | ❌ | — | Secondary AI provider key (OpenCode Zen — free) |
-| `OPENCODE_BASE_URL` | ❌ | `https://opencode.ai/zen/v1` | OpenCode API base URL |
-| `OPENCODE_MODEL` | ❌ | `opencode/mimo-v2.5-free` | OpenCode model (1M context, reasoning) |
-| `GEMINI_API_KEY` | ❌ | — | Gemini API key (optional — enables native audio transcription) |
-| `ELEVENLABS_API_KEY` | ✅ | — | ElevenLabs API key for TTS |
-| `ELEVENLABS_VOICE_ID` | ✅ | — | ElevenLabs voice ID to use |
-| `ELEVENLABS_MODEL_ID` | ❌ | `eleven_flash_v2_5` | `eleven_flash_v2_5` (fast) or `eleven_multilingual_v2` (quality) |
-| `DISCORD_TOKEN` | 🔶 | — | Discord bot token (required for Discord) |
-| `DISCORD_CLIENT_ID` | 🔶 | — | Discord application ID (required for Discord) |
-| `TELEGRAM_BOT_TOKEN` | 🔶 | — | Telegram bot token (required for Telegram) |
-| `ENABLED_PLATFORMS` | ❌ | `discord` | Comma-separated: `discord,telegram,x` |
-| `SUMMARY_MAX_MESSAGES` | ❌ | `100` | Max messages to include in a catchup |
-| `SUMMARY_TARGET_DURATION` | ❌ | `30` | Target audio summary length in seconds |
-| `DEFAULT_LANGUAGE` | ❌ | `en` | Default language for translations (ISO 639-1) |
-| `LOG_LEVEL` | ❌ | `info` | Logging level: `debug`, `info`, `warn`, `error` |
-
-🔶 = Required only if that platform is enabled
+6. **Clean Command Center UI (Next.js 14)**
+   - Displays real connected Discord community and channel.
+   - Live activity metrics: `486 real messages since 2:14 PM`.
+   - Categorized "X things matter" cards with one-click **`[ View source ]`** links.
+   - Interactive voice briefing modal with real-time waveform, transcript, and tool execution status.
 
 ---
 
 ## 🏗️ Architecture
 
 ```
-┌─────────────┐  ┌─────────────┐  ┌─────────────┐
-│   Discord   │  │  Telegram   │  │      X      │
-│  Adapter    │  │  Adapter    │  │  Adapter    │
-│ (discord.js)│  │  (grammY)   │  │(twitter-api)│
-└──────┬──────┘  └──────┬──────┘  └──────┬──────┘
-       │                │                │
-       └────────────────┼────────────────┘
-                        │
-              ┌─────────▼─────────┐
-              │    Shared Core    │
-              │                   │
-              │  ┌─────────────┐  │
-              │  │ Message DB  │  │  SQLite
-              │  │  (SQLite)   │  │
-              │  └──────┬──────┘  │
-              │         │         │
-              │  ┌──────▼──────┐  │
-              │  │ Summarizer  │  │  MiMo / OpenCode
-              │  │  + Tasks    │  │  (OpenAI-compat)
-              │  └──────┬──────┘  │
-              │         │         │
-              │  ┌──────▼──────┐  │
-              │  │   Voice     │  │  ElevenLabs
-              │  │  Engine     │  │
-              │  └──────┬──────┘  │
-              │         │         │
-              │  ┌──────▼──────┐  │
-              │  │   Audio     │  │  ffmpeg
-              │  │ Converter   │  │
-              │  └─────────────┘  │
-              └───────────────────┘
-```
-
-### How `/catchup` Works
-
-```
-User types /catchup
-       │
-       ▼
-Fetch messages from DB (since last catchup)
-       │
-       ▼
-Build chronological transcript
-       │
-       ▼
-MiMo API: Generate spoken summary (~75 words for 30s)
-MiMo API: Extract action items as JSON
-       │
-       ▼
-ElevenLabs: Convert summary text to speech (MP3)
-       │
-       ▼
-ffmpeg: Convert to platform format (OGG/Opus for TG)
-       │
-       ▼
-Send audio + task checklist to chat
+                    REAL DISCORD
+                         │
+                         ▼
+              Discord Ingestion Service
+             (Gateway Events & Backfill)
+                         │
+                         ▼
+               Layer 1: Raw Messages
+              (SQLite: discord_messages)
+                         │
+                         ▼
+            Layer 2: Conversation Events
+            (SQLite: conversation_events)
+                         │
+                         ▼
+              Layer 3: User Relevance
+              (SQLite: user_relevance)
+                         │
+                         ▼
+             Catch-up Context Engine
+                         │
+                         ▼
+              AssemblyAI Voice Agent
+             (WebSocket: PCM16 24kHz)
+                         │
+               ┌─────────┼──────────┐
+               ▼         ▼          ▼
+           Search      Source      Action
+           Tool        Tool        Tool
 ```
 
 ---
 
-## 🛠️ NPM Scripts
+## 🚀 Quick Start
 
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Start in development mode with hot reload |
-| `npm start` | Start all enabled platforms (production) |
-| `npm run build` | Compile TypeScript to JavaScript |
-| `npm run start:discord` | Start only the Discord adapter |
-| `npm run start:telegram` | Start only the Telegram adapter |
-| `npm run deploy:discord` | Register Discord slash commands |
+### 1. Prerequisites
+- **Node.js** 20+
+- **Discord Bot Token & Client ID** ([Discord Developer Portal](https://discord.com/developers/applications))
+- **AssemblyAI API Key** ([AssemblyAI Dashboard](https://www.assemblyai.com))
 
----
-
-## 🐳 Docker Deployment
-
-### Build and run
-
+### 2. Installation
 ```bash
-docker-compose up -d --build
+git clone https://github.com/Zlatan327/pulse.git
+cd pulse
+npm install
+npm install --prefix web
 ```
 
-### View logs
-
+### 3. Configure Environment
 ```bash
-docker-compose logs -f pulse
+cp .env.example .env
+```
+Fill in:
+```env
+DISCORD_TOKEN=your-discord-bot-token
+DISCORD_CLIENT_ID=your-discord-client-id
+DISCORD_CLIENT_SECRET=your-discord-client-secret
+ASSEMBLYAI_API_KEY=your-assemblyai-api-key
+AUTH_SECRET=your-random-nextauth-secret
 ```
 
-### Update
+### 4. Run the Application
+In separate terminals:
 
+**Terminal 1 — Discord Ingestion Gateway**:
 ```bash
-git pull
-docker-compose up -d --build
+npm run dev
 ```
 
-### Persistent data
-
-- **Database**: `./data/pulse.db` — all logged messages and catchup history
-
----
-
-## 📊 Cost Estimates
-
-| Service | Free Tier | Approximate Cost |
-|---------|-----------|-----------------|
-| **Xiaomi MiMo** | Free | **Free** |
-| **OpenCode Zen** | Free (limited time) | **Free** |
-| **ElevenLabs** | 10K chars/mo (~20 catchups) | $5/mo for 30K chars (~60 catchups) |
-| **VPS** | — | $5-10/mo (1GB RAM minimum) |
+**Terminal 2 — Web Command Center**:
+```bash
+npm run dev --prefix web
+```
+Open `http://localhost:3000` in your browser.
 
 ---
 
-## 🤝 Contributing
+## 🧪 Automated Testing
 
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/my-feature`
-3. Commit your changes: `git commit -m 'Add my feature'`
-4. Push to the branch: `git push origin feature/my-feature`
-5. Open a Pull Request
-
----
-
-## 📜 License
-
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+Project Re-entry includes 22 automated tests covering all integration boundaries:
+```bash
+npm test
+```
+- Message persistence & query engine
+- Event extraction with confidence ratings
+- User relevance scoring & catch-up context
+- Voice Agent tools & failure handling
 
 ---
 
-<div align="center">
-  
-**Built with ❤️ using Gemini, ElevenLabs, and too much coffee.**
+## 📚 Documentation
 
-</div>
+- [`docs/REENTRY_AUDIT.md`](docs/REENTRY_AUDIT.md) — Comprehensive repository audit from Pulse to Re-entry.
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — 3-Layer Evidence Grounding & Voice Agent architecture.
+- [`docs/INTEGRATIONS.md`](docs/INTEGRATIONS.md) — Discord API, AssemblyAI WebSocket, and OAuth setup.
+- [`docs/DEMO.md`](docs/DEMO.md) — Step-by-step golden path demonstration guide.
+
+---
+
+## 📄 License
+
+MIT

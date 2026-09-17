@@ -1,104 +1,39 @@
 /**
- * Pulse — Unified Entry Point
- * 
- * Starts the enabled platform adapters based on the ENABLED_PLATFORMS env var.
- * Usage:
- *   npm start              — starts all enabled platforms
- *   npm run start:discord  — starts only Discord
- *   npm run start:telegram — starts only Telegram
- *   npm run start:whatsapp — starts only WhatsApp
+ * Project Re-entry — Primary Service Entrypoint
+ * Starts the Discord Ingestion Gateway and initializes the SQLite evidence database.
  */
 
-import { config, initDatabase } from './core/index.js';
 import dns from 'dns';
+import { initDatabase, closeDatabase, config } from './core/index.js';
+import { startDiscord } from './discord/index.js';
 
-// Fix for Node.js undici fetch IPv6 timeout issues on Windows
+// Prefer IPv4 for reliable outbound network requests
 dns.setDefaultResultOrder('ipv4first');
 
 async function main(): Promise<void> {
   console.log('');
   console.log('╔══════════════════════════════════════════════════╗');
-  console.log('║              ⚡ PULSE — AI Chat Companion        ║');
-  console.log('║     Audio summaries for Discord, Telegram & WA   ║');
+  console.log('║             ⚡ PROJECT RE-ENTRY                  ║');
+  console.log('║   Evidence-Grounded Discord Conversation Agent   ║');
   console.log('╚══════════════════════════════════════════════════╝');
   console.log('');
 
-  // Initialize shared database
+  // 1. Initialize persistent SQLite database
   initDatabase();
+  console.log(`📦 Evidence database initialized at ${config.dbPath}`);
 
-  const platforms = config.enabledPlatforms;
-  console.log(`📡 Enabled platforms: ${platforms.join(', ')}`);
-  console.log('');
-
-  const startPromises: Promise<void>[] = [];
-
-  let discordClient: any;
-  let telegramBot: any;
-
-  // Start Discord adapter
-  if (platforms.includes('discord')) {
-    startPromises.push(
-      (async () => {
-        try {
-          const { startDiscord } = await import('./discord/index.js');
-          discordClient = await startDiscord();
-          console.log('✅ Discord adapter started');
-        } catch (error) {
-          console.error('❌ Failed to start Discord adapter:', error);
-        }
-      })()
-    );
+  // 2. Start Discord Gateway Adapter
+  try {
+    const client = await startDiscord();
+    console.log(`🚀 Project Re-entry is live! Connected as ${client.user?.tag || 'Discord Bot'}`);
+  } catch (err: any) {
+    console.error('❌ Failed to start Discord Gateway adapter:', err.message || err);
+    console.log('ℹ️  Ensure DISCORD_TOKEN and DISCORD_CLIENT_ID are set in your .env file.');
   }
-
-  // Start Telegram adapter
-  if (platforms.includes('telegram')) {
-    startPromises.push(
-      (async () => {
-        try {
-          const { startTelegram } = await import('./telegram/index.js');
-          telegramBot = await startTelegram();
-          console.log('✅ Telegram adapter started');
-        } catch (error) {
-          console.error('❌ Failed to start Telegram adapter:', error);
-        }
-      })()
-    );
-  }
-
-  // Start X adapter
-  if (platforms.includes('x')) {
-    startPromises.push(
-      (async () => {
-        try {
-          const { startX } = await import('./x/index.js');
-          await startX();
-          console.log('✅ X (Twitter) adapter started');
-        } catch (error) {
-          console.error('❌ Failed to start X (Twitter) adapter:', error);
-        }
-      })()
-    );
-  }
-
-  if (startPromises.length === 0) {
-    console.warn('⚠️  No platforms enabled! Set ENABLED_PLATFORMS in your .env file.');
-    console.warn('   Example: ENABLED_PLATFORMS=discord,telegram,whatsapp');
-    process.exit(1);
-  }
-
-  // Wait for all platforms to initialize
-  await Promise.all(startPromises);
-
-  const { startScheduler } = await import('./core/index.js');
-  startScheduler({ discordClient, telegramBot });
-
-  console.log('');
-  console.log('🚀 Pulse is running! Press Ctrl+C to stop.');
 
   // Graceful shutdown
-  const { closeDatabase } = await import('./core/index.js');
   const shutdown = () => {
-    console.log('\n👋 Shutting down Pulse...');
+    console.log('\n👋 Shutting down Project Re-entry...');
     closeDatabase();
     process.exit(0);
   };
@@ -108,6 +43,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((error) => {
-  console.error('💥 Fatal error:', error);
+  console.error('💥 Fatal error during startup:', error);
   process.exit(1);
 });

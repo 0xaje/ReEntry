@@ -1,11 +1,44 @@
 export * from './types.js';
-export { config, validatePlatform } from './config.js';
-export { initDatabase, logMessage, getRecentMessages, getMessageById, getLastCatchup, markCatchup, getMessageCount, closeDatabase, logSummary, getUserSettingsByPlatformId, deleteMessageByExternalId, getChatSettings, updateChatSettings, getAllActiveDailyChats, type ChatSettings } from './db.js';
-export { summarizeMessages, generateDetailedMinutes } from './summarizer.js';
-export { transcribeAudio } from './transcriber.js';
-export { translateText, shouldTranslate, getLanguageName } from './translator.js';
-export { generateSpeech, cleanupAudioFile } from './tts.js';
-export { convertToMp3, convertToOggOpus, cleanupTempFile, speedUpAudio } from './audio.js';
-export { formatTaskChecklist, formatTasksCompact } from './tasks.js';
-export { handleVoiceQuery } from './agent.js';
-export { startScheduler, type SchedulerClients } from './scheduler.js';
+export {
+  config,
+  validateDiscordConfig,
+  validateAssemblyAIConfig,
+} from './config.js';
+export {
+  initDatabase,
+  closeDatabase,
+  getDb,
+  storeDiscordMessage,
+  batchStoreDiscordMessages,
+  deleteDiscordMessage,
+  getDiscordMessageBySnowflake,
+  getRecentChannelMessages,
+  getChannelMessageCountSince,
+  searchStoredMessages,
+  storeConversationEvent,
+  getEventsForChannel,
+  getEventById,
+  storeUserRelevance,
+  getUserRelevanceForEvents,
+  setUserChannelActivity,
+  getUserChannelActivity,
+  upsertGuild,
+  upsertChannel,
+  getAllGuilds,
+  getChannelsForGuild,
+} from './db.js';
+export {
+  extractEventsFromMessages,
+  extractEventsDeterministic,
+} from './extractor.js';
+export {
+  scoreUserRelevance,
+  buildCatchupContext,
+  type UserIdentity,
+} from './relevance.js';
+export {
+  mintVoiceAgentToken,
+  getVoiceAgentSystemPrompt,
+  getVoiceAgentToolsDefinition,
+  executeVoiceAgentTool,
+} from './assemblyai.js';

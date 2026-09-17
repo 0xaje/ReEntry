@@ -4,68 +4,36 @@ import db from "@/lib/db";
 import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
 
-export async function updateUserSettings(formData: FormData) {
+/** Record that the user caught up on a channel, updating their last active time */
+export async function markChannelCatchup(channelId: string) {
   const session = await auth();
-  if (!session?.user?.id) {
-    throw new Error("Unauthorized");
-  }
+  const userId = session?.user?.id || "anonymous-user";
 
-  const voiceStyle = formData.get("voiceStyle") as string;
-  const language = formData.get("language") as string;
-  const deliveryPreference = formData.get("deliveryPreference") as string || "x";
+  const now = new Date().toISOString();
+  db.prepare(`
+    INSERT INTO user_channel_activity (user_id, channel_id, last_active_at)
+    VALUES (?, ?, ?)
+    ON CONFLICT(user_id, channel_id) DO UPDATE SET
+      last_active_at = excluded.last_active_at
+  `).run(userId, channelId, now);
 
-  const stmt = db.prepare(`
-    INSERT INTO user_settings (user_id, voice_style, language, delivery_preference)
-    VALUES (?, ?, ?, ?)
-    ON CONFLICT(user_id) DO UPDATE SET 
-      voice_style = excluded.voice_style,
-      language = excluded.language,
-      delivery_preference = excluded.delivery_preference
-  `);
-
-  stmt.run(session.user.id, voiceStyle, language, deliveryPreference);
   revalidatePath("/");
+  return { success: true, last_active_at: now };
 }
 
-export async function addWatchlistItem(formData: FormData) {
+/** Reset away window to 1 hour ago for testing / demonstration purposes */
+export async function setTestAwayTime(channelId: string, hoursAgo: number = 2) {
   const session = await auth();
-  if (!session?.user?.id) {
-    throw new Error("Unauthorized");
-  }
+  const userId = session?.user?.id || "anonymous-user";
 
-  const type = formData.get("type") as string;
-  const target = formData.get("target") as string;
-  
-  // Format target based on type
-  let formattedTarget = target.trim();
-  if (type === 'account' && !formattedTarget.startsWith('@')) {
-    formattedTarget = '@' + formattedTarget;
-  }
-  
-  const id = crypto.randomUUID();
+  const targetDate = new Date(Date.now() - hoursAgo * 60 * 60 * 1000).toISOString();
+  db.prepare(`
+    INSERT INTO user_channel_activity (user_id, channel_id, last_active_at)
+    VALUES (?, ?, ?)
+    ON CONFLICT(user_id, channel_id) DO UPDATE SET
+      last_active_at = excluded.last_active_at
+  `).run(userId, channelId, targetDate);
 
-  const stmt = db.prepare(`
-    INSERT INTO watchlists (id, user_id, type, target)
-    VALUES (?, ?, ?, ?)
-  `);
-
-  stmt.run(id, session.user.id, type, formattedTarget);
   revalidatePath("/");
-}
-
-export async function removeWatchlistItem(formData: FormData) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    throw new Error("Unauthorized");
-  }
-
-  const id = formData.get("id") as string;
-
-  const stmt = db.prepare(`
-    DELETE FROM watchlists 
-    WHERE id = ? AND user_id = ?
-  `);
-
-  stmt.run(id, session.user.id);
-  revalidatePath("/");
+  return { success: true, last_active_at: targetDate };
 }

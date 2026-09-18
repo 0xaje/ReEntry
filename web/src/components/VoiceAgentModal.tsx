@@ -461,7 +461,15 @@ BEHAVIORAL PRINCIPLES:
       silentGain.connect(audioCtx.destination);
     } catch (err: any) {
       console.error("Failed to start voice session:", err);
-      setErrorMessage(err.message || "Failed to initialize voice session.");
+      let message = err.message || "Failed to initialize voice session.";
+      if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+        message = "Microphone access was denied. Please allow microphone permissions in your browser address bar and click Retry.";
+      } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
+        message = "No microphone found. Please connect an audio input device and click Retry.";
+      } else if (err.message && (err.message.includes("fetch") || err.message.includes("NetworkError"))) {
+        message = "Failed to reach the Re-entry server on port 3000. Please ensure the server is running and click Retry.";
+      }
+      setErrorMessage(message);
       setStatus("error");
     }
   }, [channelId, channelName, guildName, userName, discordId, isMuted, playPcmChunk, decodeBase64Pcm16, stopAudioPlayback, resampleTo24k]);
@@ -572,12 +580,20 @@ BEHAVIORAL PRINCIPLES:
 
         {/* Error Banner */}
         {errorMessage && (
-          <div className="px-6 py-3 bg-[rgba(255,107,107,0.15)] border-b border-[#ff6b6b] flex items-start gap-3 text-[#ff8e7d] text-xs font-mono">
-            <AlertCircle className="w-4 h-4 text-[#ff8e7d] shrink-0 mt-0.5" />
-            <div>
-              <p className="font-bold uppercase">Voice Agent Error</p>
-              <p className="text-[#ff8e7d]/90 mt-0.5">{errorMessage}</p>
+          <div className="px-6 py-3 bg-[rgba(255,107,107,0.15)] border-b border-[#ff6b6b] flex items-center justify-between gap-3 text-[#ff8e7d] text-xs font-mono">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-4 h-4 text-[#ff8e7d] shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold uppercase">Voice Agent Error</p>
+                <p className="text-[#ff8e7d]/90 mt-0.5">{errorMessage}</p>
+              </div>
             </div>
+            <button
+              onClick={() => startSession()}
+              className="px-3 py-1.5 bg-[#ff6b6b]/20 hover:bg-[#ff6b6b]/30 border border-[#ff6b6b] text-white font-mono text-[10px] uppercase tracking-wider shrink-0 transition-all cursor-pointer font-bold"
+            >
+              Retry Connection
+            </button>
           </div>
         )}
 

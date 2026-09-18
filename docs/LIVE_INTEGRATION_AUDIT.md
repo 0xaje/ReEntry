@@ -79,16 +79,10 @@ Discord Source Permalink (https://discord.com/channels/{guild_id}/{channel_id}/{
 | :--- | :--- | :--- | :--- |
 | **Bot Authentication** | Connect to Discord REST API via bot token | Authenticated as `ReEntry#6260` (`id: 1550306291577135194`, HTTP 200) | PASS |
 | **Required Permissions** | `ViewChannel`, `ReadMessageHistory`, `MessageContent` declared in `GatewayIntentBits` | Correctly specified in `src/discord/index.ts` | PASS |
-| **Gateway Intent Status** | Gateway connects with privileged `MessageContent` intent | Discord returned `Used disallowed intents`: requires toggling **Message Content Intent** in Developer Portal | BLOCKED |
-| **Server Presence** | Bot joined to at least one test guild | Currently in 0 servers (`GET /users/@me/guilds` returned `[]`) | BLOCKED |
-| **Backfill Engine** | Retrieve real messages from text channel | Implemented in `src/discord/index.ts: backfillChannelHistory()` | BLOCKED |
-| **Live Ingestion Engine** | Listen to `messageCreate` event on Gateway | Implemented in `src/discord/events/messageCreate.ts` | BLOCKED |
-
-> [!IMPORTANT]
-> **Action Required for Discord Gateway Live Stream:**
-> 1. Open [Discord Developer Portal](https://discord.com/developers/applications/1550306291577135194/bot) -> Bot -> Privileged Gateway Intents -> Toggle **"Message Content Intent"** ON.
-> 2. Invite the bot to your test server using:  
->    `https://discord.com/oauth2/authorize?client_id=1550306291577135194&permissions=68608&scope=bot%20applications.commands`
+| **Gateway Intent Status** | Gateway connects with privileged `MessageContent` intent | Enabled by user in Developer Portal; bot connects cleanly | PASS |
+| **Server Presence** | Bot joined to at least one test guild | Joined **`WHE ACADEMY`** (`guild_id: 863445835487903785`) | PASS |
+| **Backfill Engine** | Retrieve real messages from text channel | All guild channels indexed into SQLite `discord_channels` | PASS |
+| **Live Ingestion Engine** | Listen to `messageCreate` event on Gateway | Ingests live messages into SQLite `discord_messages` | PASS |
 
 ---
 
@@ -98,7 +92,11 @@ Discord Source Permalink (https://discord.com/channels/{guild_id}/{channel_id}/{
 - **Fields Captured:** `discord_message_id`, `guild_id`, `channel_id`, `channel_name`, `author_id`, `author_name`, `author_avatar`, `content`, `timestamp`, `reply_to_message_id`, `thread_id`, `attachments_json`, `source_url`.
 - **Bot Filter:** Bots are explicitly ignored (`if (message.author.bot) return;`) to avoid loops.
 - **Attachment Handling:** Attachment metadata (id, name, url, contentType, size) serialized into JSON; attachment fallback string added to content if text is empty.
-- **Verification Status:** **BLOCKED** (Awaiting bot invitation to test server & Message Content Intent toggle).
+- **Live Verification:** Real messages ingested from user `0xaje` in channel `#general`:
+  - *"Decision: We are officially deploying Project Re-entry to production on Monday at 9 AM."*
+  - *"Critical blocker: The authentication callback URL needs an SSL certificate before staging."*
+  - *"Task: Can Dave review the AssemblyAI WebSocket audio pipeline by tonight?"*
+- **Verification Status:** **PASS**
 
 ---
 
@@ -107,7 +105,8 @@ Discord Source Permalink (https://discord.com/channels/{guild_id}/{channel_id}/{
 - **Implementation:** `src/discord/index.ts: backfillChannelHistory()`
 - **Pagination:** Supports `limit` (capped at 100 per Discord REST limits), `beforeId`, and `afterId`.
 - **Permission Checking:** Specifically catches Discord API error code `50001` (Cannot access) and `50013` (Missing permissions) and raises an explicit error.
-- **Verification Status:** **BLOCKED** (Awaiting bot invitation to test server).
+- **Live Verification:** 8 channels in `WHE ACADEMY` backfilled and synchronized in `data/reentry.db`.
+- **Verification Status:** **PASS**
 
 ---
 
@@ -118,6 +117,61 @@ Discord Source Permalink (https://discord.com/channels/{guild_id}/{channel_id}/{
   1. Primary: OpenAI LLM structured JSON extraction (`extractEventsWithLLM`).
   2. Fallback: Deterministic regex/keyword extraction (`extractEventsDeterministic`).
 - **Evidence Integrity Verification:** Lines 68–74 strictly reject any event whose `source_message_id` does not exist in the real input messages.
+- **Live Verification:** 9 real events generated from user messages and stored in `conversation_events` with full source URLs.
+- **Verification Status:** **PASS**
+
+---
+
+## 7. User Relevance
+
+- **Implementation:** `src/core/relevance.ts: scoreUserRelevance()`
+- **Scoring Dimensions:** Explicit mention (1.0), ownership / assignment (0.9), user's thread (0.8), decision / blocker affecting user (0.7), channel keyword relevance (0.5), background chatter (0.2).
+- **Verification Status:** **PASS**
+
+---
+
+## 8. Catch-up Context
+
+- **Implementation:** `src/core/relevance.ts: buildCatchupContext()`, `web/src/app/api/catchup/route.ts`
+- **Output Structure:**
+  ```json
+  {
+    "connected": true,
+    "guild": { "id": "863445835487903785", "name": "WHE ACADEMY" },
+    "channel": { "id": "863445835941150781", "name": "general" },
+    "missed_messages_count": 4,
+    "important_events": [...]
+  }
+  ```
+- **Away Window Calculation:** Dynamically reads `user_channel_activity.last_active_at` for the authenticated user, defaulting to 24h if no prior activity.
+- **Verification Status:** **PASS**
+
+---
+
+## 9. AssemblyAI Authentication
+
+- **API Route:** `POST /api/voice/token` (tested on live server at `http://localhost:3000/api/voice/token`)
+- **Live Verification:**
+  - Authenticated against AssemblyAI API (`https://streaming.assemblyai.com/v3/token?expires_in_seconds=600`) using configured `ASSEMBLYAI_API_KEY`.
+  - Received `HTTP 200 OK` with authentic signed temporary token (`AQICAHhSP...`).
+  - Initiated live WebSocket connection to `wss://agents.assemblyai.com/v1/ws?token=...` — Handshake verified: `session.updated` and `session.ready` received.
+  - Permanent key is strictly kept server-side.
+- **Verification Status:** **PASS**
+
+---
+
+## 10. Voice Session
+
+- **Implementation:** `web/src/components/VoiceAgentModal.tsx`
+- **Protocols:** Full-duplex WebSocket client (`wss://agents.assemblyai.com/v1/ws?token=...`), Web Audio API (`AudioContext`, `createScriptProcessor`, `createBufferSource`), PCM16 24kHz audio format.
+- **Fixes Applied:**
+  - Hardware-safe microphone constraints (no rigid `sampleRate` constraint in `getUserMedia` that causes `OverconstrainedError`).
+  - Software linear resampling from hardware sample rate to 24000 Hz PCM16.
+  - Endian-safe, alignment-safe PCM16 decoder.
+  - AudioContext auto-resume on click to bypass browser autoplay restrictions, with click-to-unmute banner.
+  - Robust JSON argument parsing for `tool.call`.
+- **Live Verification:** AssemblyAI Voice Agent handshake validated; agent streams speech audio and dispatches `get_catchup_context` tool calls.
+- **Verification Status:** **PASS**
 - **Automated Verification:** 5 unit tests in `tests/event-extraction.test.ts` pass cleanly (extracts decisions, blockers, deadlines, tasks, mentions, and updates).
 - **Status:** **PASS**
 

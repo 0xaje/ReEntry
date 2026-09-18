@@ -494,7 +494,7 @@ BEHAVIORAL PRINCIPLES:
       cleanup();
     }
     return () => cleanup();
-  }, [isOpen]);
+  }, [isOpen, startSession, cleanup]);
 
   if (!isOpen) return null;
 

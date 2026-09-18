@@ -42,6 +42,36 @@ export default function VoiceAgentModal({
   const audioQueueRef = useRef<Float32Array[]>([]);
   const isPlayingRef = useRef(false);
   const nextPlayTimeRef = useRef(0);
+  const isSessionReadyRef = useRef(false);
+  const [isAudioSuspended, setIsAudioSuspended] = useState(false);
+
+  // Resume audio context on any user interaction
+  const resumeAudio = useCallback(async () => {
+    if (audioContextRef.current && audioContextRef.current.state === "suspended") {
+      try {
+        await audioContextRef.current.resume();
+        setIsAudioSuspended(false);
+      } catch (e) {
+        console.error("Failed to resume AudioContext:", e);
+      }
+    }
+  }, []);
+
+  // Resample float32 buffer to 24000 Hz for AssemblyAI
+  const resampleTo24k = useCallback((input: Float32Array, fromRate: number): Float32Array => {
+    if (fromRate === 24000) return input;
+    const ratio = 24000 / fromRate;
+    const outLength = Math.round(input.length * ratio);
+    const output = new Float32Array(outLength);
+    for (let i = 0; i < outLength; i++) {
+      const origIndex = i / ratio;
+      const i0 = Math.floor(origIndex);
+      const i1 = Math.min(i0 + 1, input.length - 1);
+      const alpha = origIndex - i0;
+      output[i] = input[i0] * (1 - alpha) + input[i1] * alpha;
+    }
+    return output;
+  }, []);
 
   // Stop all audio playback immediately (Barge-in / Interruption)
   const stopAudioPlayback = useCallback(() => {
@@ -57,6 +87,10 @@ export default function VoiceAgentModal({
   const playPcmChunk = useCallback((pcmData: Float32Array, sampleRate = 24000) => {
     if (!audioContextRef.current) return;
     const ctx = audioContextRef.current;
+
+    if (ctx.state === "suspended") {
+      ctx.resume().then(() => setIsAudioSuspended(false)).catch(console.error);
+    }
 
     const buffer = ctx.createBuffer(1, pcmData.length, sampleRate);
     buffer.getChannelData(0).set(pcmData);
@@ -80,17 +114,17 @@ export default function VoiceAgentModal({
     };
   }, []);
 
-  // Convert Base64 PCM16 string to Float32Array for AudioContext
+  // Convert Base64 PCM16 string to Float32Array for AudioContext (Endian-safe)
   const decodeBase64Pcm16 = useCallback((base64: string): Float32Array => {
     const binary = atob(base64);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) {
-      bytes[i] = binary.charCodeAt(i);
-    }
-    const int16 = new Int16Array(bytes.buffer);
-    const float32 = new Float32Array(int16.length);
-    for (let i = 0; i < int16.length; i++) {
-      float32[i] = int16[i] / 32768.0;
+    const len = Math.floor(binary.length / 2);
+    const float32 = new Float32Array(len);
+    for (let i = 0; i < len; i++) {
+      const low = binary.charCodeAt(i * 2);
+      const high = binary.charCodeAt(i * 2 + 1);
+      let int16 = (high << 8) | low;
+      if (int16 >= 32768) int16 -= 65536;
+      float32[i] = int16 / 32768.0;
     }
     return float32;
   }, []);
@@ -100,6 +134,17 @@ export default function VoiceAgentModal({
     try {
       setStatus("connecting");
       setErrorMessage(null);
+      isSessionReadyRef.current = false;
+
+      // 1. Initialize AudioContext immediately while user interaction event is live
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      const audioCtx = audioContextRef.current || new AudioContextClass();
+      audioContextRef.current = audioCtx;
+
+      if (audioCtx.state === "suspended") {
+        audioCtx.resume().catch(() => setIsAudioSuspended(true));
+      }
+
       setTranscripts([
         {
           sender: "system",
@@ -108,7 +153,7 @@ export default function VoiceAgentModal({
         },
       ]);
 
-      // 1. Request temporary token from server endpoint
+      // 2. Request temporary token from server endpoint
       const tokenRes = await fetch("/api/voice/token", { method: "POST" });
       if (!tokenRes.ok) {
         const errJson = await tokenRes.json().catch(() => ({}));
@@ -116,14 +161,6 @@ export default function VoiceAgentModal({
       }
       const tokenData = await tokenRes.json();
       const wsUrl = tokenData.wsUrl;
-
-      // 2. Initialize AudioContext (24kHz preferred for AssemblyAI Voice Agent)
-      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-      const audioCtx = new AudioContextClass({ sampleRate: 24000 });
-      audioContextRef.current = audioCtx;
-      if (audioCtx.state === "suspended") {
-        await audioCtx.resume();
-      }
 
       // 3. Open WebSocket to AssemblyAI
       const ws = new WebSocket(wsUrl);
@@ -139,11 +176,11 @@ export default function VoiceAgentModal({
           },
         ]);
 
-        // Send session.update with system prompt and tools
+        // Send session.update with system prompt, greeting, and tools
         const sessionUpdate = {
           type: "session.update",
           session: {
-            instructions: `You are a conversation re-entry agent for Discord channel #${channelName} in ${guildName}.
+            system_prompt: `You are a conversation re-entry agent for Discord channel #${channelName} in ${guildName}.
 The user speaking with you is ${userName || "the returning team member"}.
 Your job is to help the user understand what happened in this Discord conversation while they were away and help them re-enter the conversation with confidence.
 
@@ -164,6 +201,10 @@ BEHAVIORAL PRINCIPLES:
 - The user may interrupt you naturally at any time.
 - When the user requests an action, use the create_task tool.
 - If an action cannot be executed, clearly tell the user that it was not completed.`,
+            greeting: `Hello ${userName || "there"}! I am your Project Re-entry assistant for #${channelName}. What would you like to catch up on?`,
+            output: {
+              voice: "ivy",
+            },
             tools: [
               {
                 type: "function",
@@ -229,12 +270,13 @@ BEHAVIORAL PRINCIPLES:
 
           switch (msg.type) {
             case "session.ready":
+              isSessionReadyRef.current = true;
               setStatus("ready");
               setTranscripts((prev) => [
                 ...prev,
                 {
                   sender: "system",
-                  text: `Agent ready. Say "Catch me up" to begin.`,
+                  text: `Agent connected & ready. Speak into your mic or ask "Catch me up".`,
                   timestamp: new Date().toLocaleTimeString(),
                 },
               ]);
@@ -263,8 +305,9 @@ BEHAVIORAL PRINCIPLES:
               }
               break;
 
-            case "transcript":
+            case "transcript.agent":
             case "agent.transcript":
+            case "transcript":
               if (msg.text) {
                 setTranscripts((prev) => [
                   ...prev,
@@ -277,6 +320,7 @@ BEHAVIORAL PRINCIPLES:
               }
               break;
 
+            case "transcript.user":
             case "user.transcript":
               if (msg.text) {
                 setTranscripts((prev) => [
@@ -294,7 +338,14 @@ BEHAVIORAL PRINCIPLES:
               // Server-side tool execution
               const toolName = msg.name;
               const callId = msg.call_id;
-              const args = msg.arguments || {};
+              let args = msg.arguments || {};
+              if (typeof args === "string") {
+                try {
+                  args = JSON.parse(args);
+                } catch {
+                  args = {};
+                }
+              }
 
               setCurrentToolAction(`Executing: ${toolName}...`);
 
@@ -358,13 +409,12 @@ BEHAVIORAL PRINCIPLES:
         setStatus("closed");
       };
 
-      // 4. Request Microphone stream
+      // 4. Request Microphone stream with safe standard constraints
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true,
-          sampleRate: 24000,
         },
       });
       mediaStreamRef.current = stream;
@@ -375,13 +425,16 @@ BEHAVIORAL PRINCIPLES:
       processorNodeRef.current = processor;
 
       processor.onaudioprocess = (e) => {
-        if (isMuted || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
+        if (isMuted || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN || !isSessionReadyRef.current) return;
 
         const inputChannel = e.inputBuffer.getChannelData(0);
+        // Resample hardware sample rate to 24000 Hz
+        const resampled = resampleTo24k(inputChannel, audioCtx.sampleRate);
+
         // Convert Float32 to Int16 PCM
-        const pcm16 = new Int16Array(inputChannel.length);
-        for (let i = 0; i < inputChannel.length; i++) {
-          const s = Math.max(-1, Math.min(1, inputChannel[i]));
+        const pcm16 = new Int16Array(resampled.length);
+        for (let i = 0; i < resampled.length; i++) {
+          const s = Math.max(-1, Math.min(1, resampled[i]));
           pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
         }
 
@@ -401,17 +454,21 @@ BEHAVIORAL PRINCIPLES:
         );
       };
 
+      const silentGain = audioCtx.createGain();
+      silentGain.gain.value = 0;
       micSource.connect(processor);
-      processor.connect(audioCtx.destination);
+      processor.connect(silentGain);
+      silentGain.connect(audioCtx.destination);
     } catch (err: any) {
       console.error("Failed to start voice session:", err);
       setErrorMessage(err.message || "Failed to initialize voice session.");
       setStatus("error");
     }
-  }, [channelId, channelName, guildName, userName, discordId, isMuted, playPcmChunk, decodeBase64Pcm16, stopAudioPlayback]);
+  }, [channelId, channelName, guildName, userName, discordId, isMuted, playPcmChunk, decodeBase64Pcm16, stopAudioPlayback, resampleTo24k]);
 
   // Cleanup on close or unmount
   const cleanup = useCallback(() => {
+    isSessionReadyRef.current = false;
     if (processorNodeRef.current) {
       processorNodeRef.current.disconnect();
       processorNodeRef.current = null;
@@ -442,7 +499,10 @@ BEHAVIORAL PRINCIPLES:
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/80 backdrop-blur-md">
+    <div
+      onClick={resumeAudio}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/80 backdrop-blur-md"
+    >
       <div className="relative w-full max-w-2xl bg-zinc-900 border border-zinc-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 bg-zinc-900/50">
@@ -494,6 +554,23 @@ BEHAVIORAL PRINCIPLES:
             </button>
           </div>
         </div>
+
+        {/* Audio Suspended Banner */}
+        {isAudioSuspended && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              resumeAudio();
+            }}
+            className="w-full px-6 py-2.5 bg-amber-950/60 border-b border-amber-900/50 flex items-center justify-between text-amber-200 text-xs hover:bg-amber-900/50 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <Volume2 className="w-4 h-4 text-amber-400 animate-bounce" />
+              <span>Browser audio suspended. Click here to enable audio output.</span>
+            </div>
+            <span className="font-semibold underline">Enable Audio</span>
+          </button>
+        )}
 
         {/* Error Banner */}
         {errorMessage && (

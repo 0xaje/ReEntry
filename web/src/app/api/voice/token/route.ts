@@ -16,18 +16,17 @@ export async function POST(request: Request) {
   }
 
   try {
-    const tokenUrl = process.env.ASSEMBLYAI_TOKEN_URL || "https://agents.assemblyai.com/v1/token";
-    const expiresInSeconds = 3600;
+    const tokenUrl = process.env.ASSEMBLYAI_TOKEN_URL || "https://streaming.assemblyai.com/v3/token";
+    const expiresInSeconds = 600;
 
-    const response = await fetch(tokenUrl, {
-      method: "POST",
+    const url = new URL(tokenUrl);
+    url.searchParams.set("expires_in_seconds", String(expiresInSeconds));
+
+    const response = await fetch(url.toString(), {
+      method: "GET",
       headers: {
         "Authorization": apiKey,
-        "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        expires_in_seconds: expiresInSeconds,
-      }),
     });
 
     if (!response.ok) {

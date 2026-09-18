@@ -77,14 +77,18 @@ Discord Source Permalink (https://discord.com/channels/{guild_id}/{channel_id}/{
 
 | Verification Item | Target | Result | Status |
 | :--- | :--- | :--- | :--- |
-| **Bot Authentication** | Connect to Discord Gateway via `discord.js` | Bot token not configured in `.env` (`DISCORD_TOKEN` missing) | BLOCKED |
+| **Bot Authentication** | Connect to Discord REST API via bot token | Authenticated as `ReEntry#6260` (`id: 1550306291577135194`, HTTP 200) | PASS |
 | **Required Permissions** | `ViewChannel`, `ReadMessageHistory`, `MessageContent` declared in `GatewayIntentBits` | Correctly specified in `src/discord/index.ts` | PASS |
-| **Graceful Config Failure** | Start without token triggers clear diagnostic error | Displays: `❌ DISCORD_TOKEN is required to connect to Discord` | PASS |
+| **Gateway Intent Status** | Gateway connects with privileged `MessageContent` intent | Discord returned `Used disallowed intents`: requires toggling **Message Content Intent** in Developer Portal | BLOCKED |
+| **Server Presence** | Bot joined to at least one test guild | Currently in 0 servers (`GET /users/@me/guilds` returned `[]`) | BLOCKED |
 | **Backfill Engine** | Retrieve real messages from text channel | Implemented in `src/discord/index.ts: backfillChannelHistory()` | BLOCKED |
 | **Live Ingestion Engine** | Listen to `messageCreate` event on Gateway | Implemented in `src/discord/events/messageCreate.ts` | BLOCKED |
 
-> [!NOTE]
-> Live Discord gateway connection is **BLOCKED** exclusively due to unconfigured `DISCORD_TOKEN` and `DISCORD_CLIENT_ID` in the user's environment. In strict accordance with Command 3 Rule 1, no mock Discord gateway or fake messages were introduced.
+> [!IMPORTANT]
+> **Action Required for Discord Gateway Live Stream:**
+> 1. Open [Discord Developer Portal](https://discord.com/developers/applications/1550306291577135194/bot) -> Bot -> Privileged Gateway Intents -> Toggle **"Message Content Intent"** ON.
+> 2. Invite the bot to your test server using:  
+>    `https://discord.com/oauth2/authorize?client_id=1550306291577135194&permissions=68608&scope=bot%20applications.commands`
 
 ---
 
@@ -94,7 +98,7 @@ Discord Source Permalink (https://discord.com/channels/{guild_id}/{channel_id}/{
 - **Fields Captured:** `discord_message_id`, `guild_id`, `channel_id`, `channel_name`, `author_id`, `author_name`, `author_avatar`, `content`, `timestamp`, `reply_to_message_id`, `thread_id`, `attachments_json`, `source_url`.
 - **Bot Filter:** Bots are explicitly ignored (`if (message.author.bot) return;`) to avoid loops.
 - **Attachment Handling:** Attachment metadata (id, name, url, contentType, size) serialized into JSON; attachment fallback string added to content if text is empty.
-- **Verification Status:** **BLOCKED** (blocked on live Discord connection; logic fully validated via Vitest in `tests/db-persistence.test.ts`).
+- **Verification Status:** **BLOCKED** (Awaiting bot invitation to test server & Message Content Intent toggle).
 
 ---
 
@@ -103,7 +107,7 @@ Discord Source Permalink (https://discord.com/channels/{guild_id}/{channel_id}/{
 - **Implementation:** `src/discord/index.ts: backfillChannelHistory()`
 - **Pagination:** Supports `limit` (capped at 100 per Discord REST limits), `beforeId`, and `afterId`.
 - **Permission Checking:** Specifically catches Discord API error code `50001` (Cannot access) and `50013` (Missing permissions) and raises an explicit error.
-- **Verification Status:** **BLOCKED** (blocked on live Discord connection).
+- **Verification Status:** **BLOCKED** (Awaiting bot invitation to test server).
 
 ---
 
@@ -160,15 +164,12 @@ Discord Source Permalink (https://discord.com/channels/{guild_id}/{channel_id}/{
 ## 9. AssemblyAI Authentication
 
 - **API Route:** `POST /api/voice/token` (tested on live server at `http://localhost:3000/api/voice/token`)
-- **Live Response Verified (Without credentials):**
-  ```json
-  HTTP/1.1 503 Service Unavailable
-  {
-    "error": "AssemblyAI connection failed: ASSEMBLYAI_API_KEY is not configured in the server environment."
-  }
-  ```
-- **Bundle Inspection:** Audited `web/.next/static/` chunks using `grep -rnE "ASSEMBLYAI_API_KEY|DISCORD_TOKEN"`. Result: `CLEAN: No secrets found in client bundle`.
-- **Status:** **BLOCKED** (Awaiting user provision of `ASSEMBLYAI_API_KEY` in `.env`). Server-side credential isolation and honest error reporting are verified **PASS**.
+- **Live Verification:**
+  - Authenticated against AssemblyAI API (`https://streaming.assemblyai.com/v3/token?expires_in_seconds=600`) using configured `ASSEMBLYAI_API_KEY`.
+  - Received `HTTP 200 OK` with authentic signed temporary token (`AQICAHhSP...`).
+  - Initiated live WebSocket connection to `wss://streaming.assemblyai.com/v3/ws?token=...` — Handshake verified: `✅ WebSocket to AssemblyAI opened successfully!`.
+  - Bundle Inspection: Audited `web/.next/static/` chunks using `grep -rnE "ASSEMBLYAI_API_KEY|DISCORD_TOKEN"`. Result: `CLEAN: No secrets found in client bundle`. Permanent key is strictly kept server-side.
+- **Status:** **PASS**
 
 ---
 
@@ -318,16 +319,14 @@ Discord Source Permalink (https://discord.com/channels/{guild_id}/{channel_id}/{
 ## 22. Known Blockers
 
 ```text
-1. DISCORD_TOKEN & DISCORD_CLIENT_ID
-   - Effect: Discord Bot Gateway adapter cannot authenticate with Discord servers.
-   - Action Required: User must add real Discord bot credentials to .env.
+1. DISCORD PRIVILEGED GATEWAY INTENT (Message Content Intent)
+   - Current State: Bot token is valid and authenticated as ReEntry (id: 1550306291577135194).
+   - Blocker: Gateway rejected connection with "Used disallowed intents".
+   - Action Required: In Discord Developer Portal (https://discord.com/developers/applications/1550306291577135194/bot), toggle "Message Content Intent" ON.
+   - Invite URL: https://discord.com/oauth2/authorize?client_id=1550306291577135194&permissions=68608&scope=bot%20applications.commands
 
-2. ASSEMBLYAI_API_KEY
-   - Effect: POST /api/voice/token returns HTTP 503; real-time voice WebSocket cannot open.
-   - Action Required: User must add real AssemblyAI API key to .env.
-
-3. EXTERNAL TASK PROVIDER (Linear / GitHub Issues / Todoist)
-   - Effect: create_task tool returns honest BLOCKED response.
+2. EXTERNAL TASK PROVIDER (Linear / GitHub Issues / Todoist)
+   - Effect: create_task tool returns honest BLOCKED response per Rule 17.
    - Action Required: Integrate external OAuth task provider when task writeback is prioritized.
 ```
 
@@ -336,13 +335,15 @@ Discord Source Permalink (https://discord.com/channels/{guild_id}/{channel_id}/{
 ## 23. Final Golden Path Status
 
 ```text
-REAL DISCORD CONNECTION       BLOCKED (Awaiting DISCORD_TOKEN in .env)
-REAL MESSAGE INGESTION        BLOCKED (Awaiting DISCORD_TOKEN in .env)
-REAL BACKFILL                 BLOCKED (Awaiting DISCORD_TOKEN in .env)
+REAL DISCORD REST AUTH        PASS (Authenticated as ReEntry #6260, ID: 1550306291577135194)
+REAL DISCORD GATEWAY STREAM   BLOCKED (Requires Message Content Intent toggle in Dev Portal)
+REAL MESSAGE INGESTION        BLOCKED (Awaiting bot invite to Discord server)
+REAL BACKFILL                 BLOCKED (Awaiting bot invite to Discord server)
 REAL EVENT EXTRACTION         PASS
 REAL USER RELEVANCE           PASS
 REAL CATCH-UP                 PASS
-REAL ASSEMBLYAI VOICE         BLOCKED (Awaiting ASSEMBLYAI_API_KEY in .env)
+REAL ASSEMBLYAI VOICE TOKEN   PASS (Live ephemeral token generated: HTTP 200)
+REAL ASSEMBLYAI WEBSOCKET     PASS (Live handshake verified: wss://streaming.assemblyai.com/v3/ws)
 REAL BARGE-IN                 PASS (Code verified; live audio blocked on session)
 REAL SOURCE RETRIEVAL         PASS
 REAL CONVERSATION SEARCH      PASS
@@ -359,4 +360,4 @@ GOLDEN PATH:
 NOT VERIFIED
 ```
 
-*(Reason: In strict compliance with Command 3 Rules 1 & 27, the end-to-end golden path cannot be declared PASS until a live Discord server and real AssemblyAI voice session are executed with live third-party credentials).*
+*(Reason: AssemblyAI Voice token generation and WebSocket handshake are fully verified PASS. Real Discord live ingestion and backfill will complete as soon as the bot's Message Content Intent is toggled in the Discord Developer Portal and invited to a test channel).*

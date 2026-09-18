@@ -217,21 +217,35 @@ export default function ReentryDashboard({ session, initialData }: ReentryDashbo
           </div>
 
           <div className="flex items-center gap-3 bg-zinc-900/60 border border-zinc-800 py-1.5 px-3 rounded-full">
-            {session.user?.image && (
+            {session?.user?.image ? (
               <img
                 src={session.user.image}
                 alt="Avatar"
                 className="w-6 h-6 rounded-full border border-zinc-700"
               />
+            ) : (
+              <div className="w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-[10px] font-bold">
+                {session?.user?.name?.[0] || "U"}
+              </div>
             )}
-            <span className="text-xs font-medium hidden sm:inline">{session.user?.name || "User"}</span>
-            <button
-              onClick={() => signOut()}
-              className="text-zinc-400 hover:text-zinc-100 transition-colors p-1"
-              title="Sign out"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
+            <span className="text-xs font-medium hidden sm:inline">{session?.user?.name || "Judge / Guest"}</span>
+            {session?.user ? (
+              <button
+                onClick={() => signOut()}
+                className="text-zinc-400 hover:text-zinc-100 transition-colors p-1"
+                title="Sign out"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            ) : (
+              <button
+                onClick={() => setIsGuestMode(false)}
+                className="text-zinc-400 hover:text-zinc-100 transition-colors p-1 text-[10px]"
+                title="Exit guest mode"
+              >
+                Exit
+              </button>
+            )}
           </div>
         </div>
       </header>
@@ -470,8 +484,8 @@ export default function ReentryDashboard({ session, initialData }: ReentryDashbo
         channelId={selectedChannelId}
         channelName={data?.channel?.name || "general"}
         guildName={data?.guild?.name || "Discord Server"}
-        userName={session.user?.name || "User"}
-        discordId={(session.user as any)?.discordId}
+        userName={session?.user?.name || "User"}
+        discordId={(session?.user as any)?.discordId || ""}
       />
     </main>
   );

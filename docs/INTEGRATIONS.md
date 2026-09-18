@@ -35,24 +35,18 @@ The web frontend authenticates users via Discord OAuth to determine their Discor
 Project Re-entry uses the real **AssemblyAI Voice Agent API** for interactive spoken briefings.
 
 ### Ephemeral Token Endpoint
-- **URL**: `POST https://agents.assemblyai.com/v1/token`
+- **URL**: `GET https://streaming.assemblyai.com/v3/token?expires_in_seconds=600`
 - **Headers**:
   ```http
   Authorization: YOUR_ASSEMBLYAI_API_KEY
-  Content-Type: application/json
-  ```
-- **Body**:
-  ```json
-  {
-    "expires_in_seconds": 3600
-  }
   ```
 - **Response**:
   ```json
   {
-    "token": "..."
+    "token": "AQICA..."
   }
   ```
+*(Note: Configurable via `ASSEMBLYAI_TOKEN_URL` in server environment; defaults to streaming token v3).*
 
 ### WebSocket Protocol
 - **Endpoint**: `wss://agents.assemblyai.com/v1/ws?token=TOKEN`

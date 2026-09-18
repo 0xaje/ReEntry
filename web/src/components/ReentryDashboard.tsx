@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Image from "next/image";
 import {
   MessageSquare,
   Volume2,
@@ -214,10 +215,13 @@ export default function ReentryDashboard({ session, initialData }: ReentryDashbo
 
           <div className="flex items-center gap-3 border border-[rgba(204,226,255,0.29)] bg-[rgba(4,28,79,0.42)] py-1.5 px-3">
             {session?.user?.image ? (
-              <img
+              <Image
                 src={session.user.image}
                 alt="Avatar"
-                className="w-6 h-6 rounded-none border border-[rgba(204,226,255,0.29)]"
+                width={24}
+                height={24}
+                unoptimized
+                className="w-6 h-6 rounded-none border border-[rgba(204,226,255,0.29)] object-cover"
               />
             ) : (
               <div className="w-6 h-6 bg-[rgba(121,237,190,0.15)] text-[#79edbe] flex items-center justify-center text-[10px] font-mono font-bold">
@@ -331,15 +335,31 @@ export default function ReentryDashboard({ session, initialData }: ReentryDashbo
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-[10px] font-mono font-bold uppercase tracking-wider text-[#79edbe]">
                 <Sparkles className="w-3.5 h-3.5" />
-                Activity Detection Engine
+                CONVERSATION RE-ENTRY
               </div>
-              <h2 className="text-4xl sm:text-5xl font-extrabold text-white tracking-tight">
-                {data?.missed_messages_count ?? 0} real messages
+              <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+                You were away.
               </h2>
-              <p className="text-[#b5c8eb] text-xs sm:text-sm flex items-center gap-2 font-mono">
-                <Clock className="w-3.5 h-3.5 text-[#8eaee1]" />
-                Since {timeFormatted} {durationAwayHours > 0 ? `(${durationAwayHours}h away)` : ""}
+              <p className="text-sm sm:text-base text-white/90 font-medium">
+                Catch up on what changed while you were gone.
               </p>
+              <div className="flex flex-wrap items-center gap-3 text-[#b5c8eb] text-xs font-mono pt-1">
+                <span className="flex items-center gap-1.5 text-[#79edbe] font-bold">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#79edbe] animate-pulse" />
+                  {data?.missed_messages_count ?? 0} unread messages
+                </span>
+                <span className="text-[rgba(204,226,255,0.3)]">•</span>
+                <span className="flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-[#8eaee1]" />
+                  Since {timeFormatted} {durationAwayHours > 0 ? `(${durationAwayHours}h away)` : ""}
+                </span>
+                {data?.total_messages_count ? (
+                  <>
+                    <span className="text-[rgba(204,226,255,0.3)]">•</span>
+                    <span>{data.total_messages_count} total stored</span>
+                  </>
+                ) : null}
+              </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
@@ -493,7 +513,14 @@ export default function ReentryDashboard({ session, initialData }: ReentryDashbo
                 <div key={m.id} className="py-2.5 flex items-start justify-between gap-3">
                   <div className="flex items-start gap-2.5">
                     {m.avatar ? (
-                      <img src={m.avatar} alt="Avatar" className="w-5 h-5 rounded-none border border-[rgba(204,226,255,0.2)] mt-0.5" />
+                      <Image
+                        src={m.avatar}
+                        alt={m.author}
+                        width={20}
+                        height={20}
+                        unoptimized
+                        className="w-5 h-5 rounded-none border border-[rgba(204,226,255,0.2)] mt-0.5 object-cover"
+                      />
                     ) : (
                       <div className="w-5 h-5 bg-[rgba(4,28,79,0.8)] text-[#8eaee1] flex items-center justify-center text-[10px]">
                         {m.author.slice(0, 1)}

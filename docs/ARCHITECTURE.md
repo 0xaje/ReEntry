@@ -12,36 +12,58 @@ Every claim made by the system is grounded in verifiable Discord evidence with e
 
 ## 2. System Architecture
 
+Project Re-entry decouples ingestion, state grounding, web telemetry, and full-duplex voice execution into three focused pipelines:
+
+### Pipeline A: User & Web Client
 ```
-                    REAL DISCORD
-                         │
-                         ▼
-              Discord Ingestion Service
-             (Gateway Events & Backfill)
-                         │
-                         ▼
-               Layer 1: Raw Messages
-              (SQLite: discord_messages)
-                         │
-                         ▼
-            Layer 2: Conversation Events
-            (SQLite: conversation_events)
-                         │
-                         ▼
-              Layer 3: User Relevance
-              (SQLite: user_relevance)
-                         │
-                         ▼
-             Catch-up Context Engine
-                         │
-                         ▼
-              AssemblyAI Voice Agent
-             (WebSocket: PCM16 24kHz)
-                         │
-               ┌─────────┼──────────┐
-               ▼         ▼          ▼
-           Search      Source      Action
-           Tool        Tool        Tool
+USER
+  │
+  ▼
+RE-ENTRY WEB CLIENT (Next.js 14 App Router)
+  │
+  ▼
+NEXT.JS API (/api/catchup)
+  │
+  ▼
+CATCH-UP / RELEVANCE ENGINE
+  │
+  ▼
+SQLITE (data/reentry.db)
+```
+
+### Pipeline B: Discord Gateway Ingestion
+```
+DISCORD GUILD (#general)
+  │
+  ▼
+DISCORD GATEWAY (discord.js v14: GatewayIntentBits.MessageContent)
+  │
+  ▼
+INGESTION PIPELINE
+  ├── Layer 1: Raw Message Store (discord_messages)
+  ├── Layer 2: Event Extractor (conversation_events)
+  └── Layer 3: User Relevance Engine (user_relevance)
+  │
+  ▼
+SQLITE (data/reentry.db)
+```
+
+### Pipeline C: Full-Duplex Voice Agent
+```
+VOICE CLIENT (Browser Web Audio / PCM16 24 kHz)
+  │
+  ├─► POST /api/voice/token (Server mints 600s ephemeral AssemblyAI token)
+  │
+  ▼
+ASSEMBLYAI VOICE AGENT (wss://agents.assemblyai.com/v1/ws)
+  │
+  ▼
+VOICE TOOLS (/api/voice/tool)
+  ├── get_catchup_context ──┐
+  ├── search_conversation ──┼──► RE-ENTRY DATA (SQLite)
+  ├── get_source ───────────┘          │
+  └── create_task (Honest unavailable)  ▼
+                                DISCORD SOURCE (Verified Permalinks)
 ```
 
 ---

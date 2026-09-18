@@ -121,8 +121,8 @@ Every single factual claim is traceable to an authentic Discord message permalin
 
 ### 2. Installation
 ```bash
-git clone https://github.com/Zlatan327/pulse.git
-cd pulse
+git clone https://github.com/0xaje/ReEntry.git
+cd ReEntry
 npm install
 npm install --prefix web
 ```

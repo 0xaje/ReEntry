@@ -501,56 +501,54 @@ BEHAVIORAL PRINCIPLES:
   return (
     <div
       onClick={resumeAudio}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/80 backdrop-blur-md"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[rgba(1,10,30,0.85)] backdrop-blur-md"
     >
-      <div className="relative w-full max-w-2xl bg-zinc-900 border border-zinc-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 bg-zinc-900/50">
+      <div className="relative w-full max-w-2xl bg-[#041a4a] border border-[rgba(204,226,255,0.29)] shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+        {/* HUD Corner Brackets */}
+        <span className="panel-corner panel-corner--tl" />
+        <span className="panel-corner panel-corner--tr" />
+        <span className="panel-corner panel-corner--bl" />
+        <span className="panel-corner panel-corner--br" />
+
+        {/* Modal Header */}
+        <div className="flex items-center justify-between px-6 py-3.5 border-b border-[rgba(204,226,255,0.25)] bg-[#092c73]">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400">
-              <Radio className="w-5 h-5 animate-pulse" />
+            <div className="p-2 border border-[rgba(204,226,255,0.29)] bg-[rgba(4,28,79,0.42)]">
+              <Radio className="w-4 h-4 text-[#79edbe] animate-pulse" />
             </div>
             <div>
-              <h3 className="font-semibold text-zinc-100 flex items-center gap-2 text-sm sm:text-base">
-                AssemblyAI Voice Agent • #{channelName}
+              <h3 className="font-bold text-white text-xs sm:text-sm font-mono tracking-wider uppercase">
+                ASSEMBLYAI VOICE AGENT • #{channelName}
               </h3>
-              <p className="text-xs text-zinc-400">Real-time conversational briefing</p>
+              <p className="text-[10px] text-[#8eaee1] font-mono">REAL-TIME CONVERSATIONAL TELEMETRY</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <span
-              className={`text-xs px-2.5 py-1 rounded-full font-medium flex items-center gap-1.5 ${
-                status === "speaking"
-                  ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                  : status === "listening"
-                  ? "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
-                  : status === "interrupted"
-                  ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+            <div
+              className={`status-chip ${
+                status === "interrupted"
+                  ? "status-chip--warn"
                   : status === "error"
-                  ? "bg-red-500/10 text-red-400 border border-red-500/20"
-                  : "bg-zinc-800 text-zinc-400"
+                  ? "status-chip--danger"
+                  : ""
               }`}
             >
               <span
-                className={`w-1.5 h-1.5 rounded-full ${
+                className={`status-dot ${
                   status === "speaking"
-                    ? "bg-emerald-400 animate-ping"
+                    ? "animate-ping"
                     : status === "listening"
-                    ? "bg-indigo-400 animate-pulse"
-                    : status === "interrupted"
-                    ? "bg-amber-400"
-                    : status === "error"
-                    ? "bg-red-400"
-                    : "bg-zinc-500"
+                    ? "animate-pulse"
+                    : ""
                 }`}
               />
-              {status.toUpperCase()}
-            </span>
+              <span>{status.toUpperCase()}</span>
+            </div>
             <button
               onClick={onClose}
-              className="p-1.5 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-lg transition-colors"
+              className="p-1.5 text-[#8eaee1] hover:text-white hover:bg-[rgba(204,226,255,0.1)] transition-colors"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
           </div>
         </div>
@@ -562,37 +560,37 @@ BEHAVIORAL PRINCIPLES:
               e.stopPropagation();
               resumeAudio();
             }}
-            className="w-full px-6 py-2.5 bg-amber-950/60 border-b border-amber-900/50 flex items-center justify-between text-amber-200 text-xs hover:bg-amber-900/50 transition-colors"
+            className="w-full px-6 py-2.5 bg-[rgba(85,45,8,0.45)] border-b border-[rgba(255,196,125,0.45)] flex items-center justify-between text-[#ffc47d] text-xs font-mono hover:bg-[rgba(85,45,8,0.6)] transition-colors"
           >
             <div className="flex items-center gap-2">
-              <Volume2 className="w-4 h-4 text-amber-400 animate-bounce" />
+              <Volume2 className="w-4 h-4 text-[#ffc47d] animate-bounce" />
               <span>Browser audio suspended. Click here to enable audio output.</span>
             </div>
-            <span className="font-semibold underline">Enable Audio</span>
+            <span className="font-bold underline uppercase tracking-wider text-[10px]">Enable Audio</span>
           </button>
         )}
 
         {/* Error Banner */}
         {errorMessage && (
-          <div className="px-6 py-3 bg-red-950/50 border-b border-red-900/50 flex items-start gap-3 text-red-200 text-xs sm:text-sm">
-            <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+          <div className="px-6 py-3 bg-[rgba(255,107,107,0.15)] border-b border-[#ff6b6b] flex items-start gap-3 text-[#ff8e7d] text-xs font-mono">
+            <AlertCircle className="w-4 h-4 text-[#ff8e7d] shrink-0 mt-0.5" />
             <div>
-              <p className="font-semibold">Voice Agent Error</p>
-              <p className="text-red-300/90">{errorMessage}</p>
+              <p className="font-bold uppercase">Voice Agent Error</p>
+              <p className="text-[#ff8e7d]/90 mt-0.5">{errorMessage}</p>
             </div>
           </div>
         )}
 
         {/* Tool Execution Banner */}
         {currentToolAction && (
-          <div className="px-6 py-2.5 bg-indigo-950/40 border-b border-indigo-900/40 flex items-center gap-2.5 text-indigo-200 text-xs font-mono">
-            <Sparkles className="w-4 h-4 text-indigo-400 animate-spin" />
+          <div className="px-6 py-2 bg-[#020c24] border-b border-[rgba(204,226,255,0.2)] flex items-center gap-2.5 text-[#79edbe] text-xs font-mono">
+            <Sparkles className="w-3.5 h-3.5 text-[#79edbe] animate-spin" />
             <span>{currentToolAction}</span>
           </div>
         )}
 
         {/* Live Conversation Transcript */}
-        <div className="flex-1 p-6 overflow-y-auto space-y-3 custom-scrollbar min-h-[260px] text-sm">
+        <div className="flex-1 p-6 overflow-y-auto space-y-3 custom-scrollbar min-h-[280px] bg-[rgba(4,28,79,0.3)] text-xs font-sans">
           {transcripts.map((entry, idx) => (
             <div
               key={idx}
@@ -605,21 +603,21 @@ BEHAVIORAL PRINCIPLES:
               }`}
             >
               <div
-                className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${
+                className={`max-w-[85%] p-3.5 ${
                   entry.sender === "user"
-                    ? "bg-indigo-600 text-white"
+                    ? "bg-[rgba(8,46,117,0.85)] border border-[rgba(204,226,255,0.3)] text-white shadow-md"
                     : entry.sender === "tool"
-                    ? "bg-zinc-950 border border-zinc-800 text-zinc-400 font-mono text-xs w-full"
+                    ? "bg-[#010818] border border-[rgba(204,226,255,0.18)] text-[#8eaee1] font-mono text-[11px] w-full"
                     : entry.sender === "system"
-                    ? "bg-zinc-800/40 text-zinc-400 text-xs italic border border-zinc-800/60"
-                    : "bg-zinc-800/90 text-zinc-100 border border-zinc-700/60"
+                    ? "bg-[rgba(4,28,79,0.4)] text-[#8eaee1] text-[11px] font-mono italic border border-[rgba(204,226,255,0.15)]"
+                    : "bg-[#020c24] text-[#f4f8ff] border border-[rgba(121,237,190,0.35)] shadow-md"
                 }`}
               >
                 <div className="flex items-center justify-between gap-4 mb-1">
-                  <span className="text-[10px] font-semibold tracking-wider uppercase opacity-75">
-                    {entry.sender === "user" ? "You" : entry.sender === "agent" ? "Re-entry Voice" : entry.sender}
+                  <span className="text-[9px] font-mono font-bold tracking-wider uppercase text-[#79edbe]">
+                    {entry.sender === "user" ? "YOU" : entry.sender === "agent" ? "RE-ENTRY AGENT" : entry.sender.toUpperCase()}
                   </span>
-                  <span className="text-[10px] opacity-50">{entry.timestamp}</span>
+                  <span className="text-[9px] font-mono text-[#6e8bc2]">{entry.timestamp}</span>
                 </div>
                 <p className="leading-relaxed whitespace-pre-wrap">{entry.text}</p>
                 {entry.sourceUrl && (
@@ -627,7 +625,7 @@ BEHAVIORAL PRINCIPLES:
                     href={entry.sourceUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="mt-2 inline-flex items-center gap-1 text-xs text-indigo-400 hover:underline"
+                    className="mt-2 inline-flex items-center gap-1.5 text-[10px] font-mono text-[#79edbe] hover:underline"
                   >
                     <LinkIcon className="w-3 h-3" />
                     Verify Source on Discord
@@ -639,30 +637,30 @@ BEHAVIORAL PRINCIPLES:
         </div>
 
         {/* Visualizer & Controls Footer */}
-        <div className="p-6 border-t border-zinc-800 bg-zinc-950/60 flex items-center justify-between">
+        <div className="p-4 sm:p-5 border-t border-[rgba(204,226,255,0.25)] bg-[#092c73] flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setIsMuted(!isMuted)}
-              className={`p-3 rounded-full transition-all ${
+              className={`p-2.5 border transition-all ${
                 isMuted
-                  ? "bg-red-500/10 text-red-400 border border-red-500/20"
-                  : "bg-zinc-800 text-zinc-200 hover:bg-zinc-700"
+                  ? "bg-[rgba(255,107,107,0.2)] text-[#ff8e7d] border-[#ff6b6b]"
+                  : "bg-[rgba(4,28,79,0.42)] text-white border-[rgba(204,226,255,0.29)] hover:bg-[rgba(22,69,143,0.7)]"
               }`}
               title={isMuted ? "Unmute Microphone" : "Mute Microphone"}
             >
-              {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+              {isMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4 text-[#79edbe]" />}
             </button>
             <button
               onClick={stopAudioPlayback}
-              className="px-3.5 py-2 rounded-xl text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors border border-zinc-700"
+              className="btn-outline text-[10px] py-2 px-3 border-[#ff6b6b] text-[#ff8e7d] hover:bg-[rgba(255,107,107,0.2)]"
             >
               Barge-in / Interrupt
             </button>
           </div>
 
-          <div className="text-right">
-            <p className="text-xs text-zinc-400">Speak naturally into your mic</p>
-            <p className="text-[11px] text-zinc-500">Ask: &quot;Why?&quot; • &quot;Who decided that?&quot; • &quot;Show me the message&quot;</p>
+          <div className="text-right font-mono">
+            <p className="text-[10px] text-white uppercase tracking-wider">Speak into microphone</p>
+            <p className="text-[9px] text-[#8eaee1]">Ask: &quot;Why?&quot; • &quot;Who decided that?&quot; • &quot;Show source&quot;</p>
           </div>
         </div>
       </div>

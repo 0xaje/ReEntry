@@ -2,14 +2,287 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ==========================================================================
+   PROJECT RE-ENTRY — BLUEPRINT CYBER THEME
+   ========================================================================== */
 :root {
-  --background: #09090b;
-  --foreground: #fafafa;
-  --accent: #2563eb;
+  /* Brand Navy Spectrum */
+  --bg-canvas: #08296a;
+  --bg-topbar: #092c73;
+  --bg-panel: rgba(8, 46, 117, 0.68);
+  --bg-panel-inset: rgba(4, 28, 79, 0.42);
+  --bg-modal: #041a4a;
+  --bg-deep: #020c24;
+
+  /* Foreground Text */
+  --fg-primary: #f4f8ff;
+  --fg-secondary: #b5c8eb;
+  --fg-muted: #8eaee1;
+  --fg-dim: #6e8bc2;
+
+  /* Borders & Grid */
+  --border-panel: rgba(204, 226, 255, 0.29);
+  --border-subtle: rgba(204, 226, 255, 0.18);
+  --border-focus: #ffffff;
+
+  /* Accent Signals */
+  --accent-mint: #79edbe;
+  --accent-amber: #ffc47d;
+  --accent-coral: #ff8e7d;
+  --accent-purple: #d4a9ff;
+
+  /* Technical Edge */
+  --radius: 0px;
 }
 
-body {
-  background-color: var(--background);
-  color: var(--foreground);
-  font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  background-color: var(--bg-canvas);
+  color: var(--fg-primary);
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Background Blueprint Grid Pattern */
+.canvas-grid {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image: 
+    linear-gradient(rgba(192, 220, 255, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(192, 220, 255, 0.055) 1px, transparent 1px);
+  background-size: 34px 34px;
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.95), transparent 96%);
+  z-index: 0;
+}
+
+/* Top Navigation Bar */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 70px;
+  padding: 0 28px;
+  border-bottom: 1px solid rgba(203, 222, 255, 0.25);
+  background: var(--bg-topbar);
+  box-shadow: 0 10px 26px rgba(3, 17, 54, 0.25);
+}
+
+.brand-title {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #ffffff;
+}
+
+.brand-subtitle {
+  font-size: 9px;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: #9eb7e5;
+  margin-top: 2px;
+}
+
+/* Monospace Micro Eyebrow / Kicker */
+.section-kicker {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
+  border-bottom: 1px solid rgba(207, 225, 255, 0.2);
+  color: #dce8ff;
+  font-family: var(--font-mono), "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.section-kicker__line {
+  flex: 1;
+  height: 1px;
+  background: rgba(198, 221, 255, 0.19);
+}
+
+/* Blueprint HUD Panel */
+.panel {
+  position: relative;
+  border: 1px solid var(--border-panel);
+  background: var(--bg-panel);
+  box-shadow: 0 12px 35px rgba(3, 20, 63, 0.2);
+  backdrop-filter: blur(12px);
+}
+
+/* Signature White Technical Corner Brackets */
+.panel-corner {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.panel-corner--tl {
+  top: -1px;
+  left: -1px;
+  border-top: 2px solid #ffffff;
+  border-left: 2px solid #ffffff;
+}
+
+.panel-corner--tr {
+  top: -1px;
+  right: -1px;
+  border-top: 2px solid #ffffff;
+  border-right: 2px solid #ffffff;
+}
+
+.panel-corner--bl {
+  bottom: -1px;
+  left: -1px;
+  border-bottom: 2px solid #ffffff;
+  border-left: 2px solid #ffffff;
+}
+
+.panel-corner--br {
+  right: -1px;
+  bottom: -1px;
+  border-right: 2px solid #ffffff;
+  border-bottom: 2px solid #ffffff;
+}
+
+/* Form Inputs & Selects */
+.field-input, .field-textarea, .field-select {
+  width: 100%;
+  border: 1px solid rgba(205, 227, 255, 0.28);
+  background: rgba(4, 28, 79, 0.42);
+  color: #ffffff;
+  padding: 9px 14px;
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.field-input:focus, .field-textarea:focus, .field-select:focus {
+  border-color: #ffffff;
+  box-shadow: 0 0 0 1px #ffffff;
+}
+
+.field-input::placeholder, .field-textarea::placeholder {
+  color: #6e8bc2;
+}
+
+/* Primary High-Contrast Button */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 20px;
+  border: 1px solid #ffffff;
+  background: #ffffff;
+  color: #08296a;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: background 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+  box-shadow: 0 4px 14px rgba(255, 255, 255, 0.15);
+}
+
+.btn-primary:hover {
+  background: #dbe9ff;
+  box-shadow: 0 6px 20px rgba(219, 233, 255, 0.3);
+}
+
+.btn-primary:active {
+  transform: scale(0.98);
+}
+
+/* Outline / Ghost Button */
+.btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 16px;
+  border: 1px solid rgba(223, 235, 255, 0.45);
+  background: rgba(8, 41, 106, 0.45);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: background 160ms ease, border-color 160ms ease;
+}
+
+.btn-outline:hover {
+  background: rgba(22, 69, 143, 0.7);
+  border-color: rgba(255, 255, 255, 0.7);
+}
+
+.btn-outline:active {
+  transform: scale(0.98);
+}
+
+/* Status Chips & Badges */
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 11px;
+  border: 1px solid rgba(185, 211, 255, 0.34);
+  background: rgba(4, 28, 79, 0.45);
+  color: #d5e2ff;
+  font-family: var(--font-mono), "IBM Plex Mono", monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-mint);
+  box-shadow: 0 0 0 3px rgba(121, 237, 190, 0.2);
+}
+
+.status-chip--warn .status-dot {
+  background: var(--accent-amber);
+  box-shadow: 0 0 0 3px rgba(255, 196, 125, 0.2);
+}
+
+.status-chip--danger .status-dot {
+  background: var(--accent-coral);
+  box-shadow: 0 0 0 3px rgba(255, 142, 125, 0.2);
+}
+
+/* Custom Scrollbars */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(2, 12, 36, 0.5);
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(204, 226, 255, 0.25);
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(204, 226, 255, 0.45);
 }

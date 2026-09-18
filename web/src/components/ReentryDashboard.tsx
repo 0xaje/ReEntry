@@ -122,10 +122,12 @@ export default function ReentryDashboard({ session, initialData }: ReentryDashbo
     ? Math.max(0, Math.round((Date.now() - periodStart.getTime()) / (1000 * 60 * 60)))
     : 0;
 
+  const [isGuestMode, setIsGuestMode] = useState(false);
+
   // -------------------------
   // LOGGED OUT VIEW
   // -------------------------
-  if (!session?.user) {
+  if (!session?.user && !isGuestMode) {
     return (
       <main className="min-h-screen relative flex flex-col items-center justify-center p-6 bg-zinc-950 text-zinc-100 selection:bg-indigo-500 selection:text-white">
         <div className="absolute top-1/4 left-1/4 w-[450px] h-[450px] bg-indigo-600/10 rounded-full blur-[130px] pointer-events-none" />
@@ -155,6 +157,19 @@ export default function ReentryDashboard({ session, initialData }: ReentryDashbo
           >
             <MessageSquare className="w-5 h-5" />
             Sign in with Discord
+          </button>
+
+          <div className="flex items-center gap-3 my-0.5">
+            <div className="flex-1 border-t border-zinc-800" />
+            <span className="text-[10px] text-zinc-500 uppercase tracking-widest font-mono">or test locally</span>
+            <div className="flex-1 border-t border-zinc-800" />
+          </div>
+
+          <button
+            onClick={() => setIsGuestMode(true)}
+            className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-medium transition-all border border-zinc-700 active:scale-[0.98]"
+          >
+            Enter Command Center (Local Test Mode)
           </button>
         </div>
       </main>

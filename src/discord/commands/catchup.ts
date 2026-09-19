@@ -1,5 +1,5 @@
 import type { ChatInputCommandInteraction } from 'discord.js';
-import { buildCatchupContext } from '../../core/index.js';
+import { buildCatchupContext, buildServerCatchupContext } from '../../core/index.js';
 
 function parseTimeframeToDate(timeStr: string): Date | null {
   const match = timeStr.match(/^(\d+)\s*(m|min|mins|minutes|h|hr|hrs|hours|d|day|days)$/i);
@@ -16,26 +16,27 @@ function parseTimeframeToDate(timeStr: string): Date | null {
 export async function handleCatchup(interaction: ChatInputCommandInteraction): Promise<void> {
   await interaction.deferReply({ ephemeral: interaction.options.getString('delivery') === 'private' });
 
+  const scope = interaction.options.getString('scope') || 'channel';
   const channelId = interaction.channelId;
   const channelName = 'name' in (interaction.channel || {}) ? (interaction.channel as any).name : 'channel';
+  const guildName = interaction.guild?.name || 'Server';
   const timeframeStr = interaction.options.getString('timeframe');
   const sinceDate = timeframeStr ? parseTimeframeToDate(timeframeStr) || undefined : undefined;
 
   try {
-    const context = await buildCatchupContext(
-      channelId,
-      {
-        internalUserId: interaction.user.id,
-        discordId: interaction.user.id,
-        username: interaction.user.username,
-        displayName: interaction.user.displayName,
-      },
-      sinceDate,
-      channelName
-    );
+    const user = {
+      internalUserId: interaction.user.id,
+      discordId: interaction.user.id,
+      username: interaction.user.username,
+      displayName: interaction.user.displayName,
+    };
+
+    const context = (scope === 'server' && interaction.guildId)
+      ? await buildServerCatchupContext(interaction.guildId, user, sinceDate, guildName)
+      : await buildCatchupContext(channelId, user, sinceDate, channelName);
 
     if (context.missed_messages_count === 0 && context.important_events.length === 0) {
-      await interaction.editReply('✅ You are all caught up! No recent messages were found in this time window.');
+      await interaction.editReply(`✅ You are all caught up! No recent activity was found in this time window.`);
       return;
     }
 
@@ -43,7 +44,9 @@ export async function handleCatchup(interaction: ChatInputCommandInteraction): P
     const timeEnd = context.period_end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
     let responseText = `⚡ **PROJECT RE-ENTRY — Catch-up Briefing**\n`;
-    responseText += `Channel: **#${context.channel_name}**\n`;
+    responseText += scope === 'server'
+      ? `Scope: **Entire Server (${guildName})**\n`
+      : `Channel: **#${context.channel_name}**\n`;
     responseText += `📊 **${context.missed_messages_count} real messages** analyzed (${timeStart} → ${timeEnd})\n\n`;
 
     if (context.important_events.length === 0) {

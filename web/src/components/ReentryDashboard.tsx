@@ -349,7 +349,7 @@ export default function ReentryDashboard({ session, initialData }: ReentryDashbo
                   {data?.missed_messages_count ?? 0} unread messages
                 </span>
                 <span className="text-[rgba(204,226,255,0.3)]">•</span>
-                <span className="flex items-center gap-1.5">
+                <span className="flex items-center gap-1.5" suppressHydrationWarning>
                   <Clock className="w-3.5 h-3.5 text-[#8eaee1]" />
                   Since {timeFormatted} {durationAwayHours > 0 ? `(${durationAwayHours}h away)` : ""}
                 </span>
@@ -529,7 +529,7 @@ export default function ReentryDashboard({ session, initialData }: ReentryDashbo
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="font-bold text-white">{m.author}</span>
-                        <span className="text-[10px] text-[#8eaee1]">
+                        <span className="text-[10px] text-[#8eaee1]" suppressHydrationWarning>
                           {new Date(m.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                         </span>
                       </div>

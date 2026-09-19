@@ -6,6 +6,8 @@ import {
   getUserChannelActivity,
   storeUserRelevance,
   getDiscordMessageBySnowflake,
+  getGuildMessageCountSince,
+  getEventsForGuild,
 } from './db.js';
 import { extractEventsFromMessages } from './extractor.js';
 import type {
@@ -233,3 +235,73 @@ export async function buildCatchupContext(
     important_events: groundedEvents,
   };
 }
+
+/**
+ * Build a server-wide catch-up context aggregating decisions, blockers,
+ * and key updates across all channels in the Discord server (guild).
+ */
+export async function buildServerCatchupContext(
+  guildId: string,
+  user: UserIdentity,
+  customSince?: Date,
+  guildName: string = 'server'
+): Promise<CatchupContext & { channels_count: number; channel_summaries: Record<string, number> }> {
+  const periodStart = customSince || new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const periodEnd = new Date();
+
+  // 1. Get total message count across guild
+  const missedCount = getGuildMessageCountSince(guildId, periodStart);
+
+  // 2. Get all events across all channels in guild
+  const events = getEventsForGuild(guildId, periodStart, 100);
+
+  // 3. Assemble grounded event items
+  const groundedEvents: GroundedEventItem[] = [];
+  const channelSummaries: Record<string, number> = {};
+
+  for (const event of events) {
+    const sourceMsg = getDiscordMessageBySnowflake(event.source_message_id);
+    const chName = sourceMsg?.channel_name || 'channel';
+    channelSummaries[chName] = (channelSummaries[chName] || 0) + 1;
+
+    groundedEvents.push({
+      event_id: event.event_id,
+      type: event.type,
+      title: `[#${chName}] ${event.title}`,
+      summary: event.description,
+      owner: event.owner,
+      deadline: event.deadline,
+      relevance: {
+        type: 'contextual_relevance',
+        reason: `Activity in #${chName}`,
+        score: event.type === 'blocker' ? 0.95 : event.type === 'decision' ? 0.85 : 0.7,
+      },
+      confidence: event.confidence,
+      source_message_id: event.source_message_id,
+      source_url: event.source_url,
+      author_name: sourceMsg?.author_name,
+      timestamp: sourceMsg?.timestamp || event.created_at,
+    });
+  }
+
+  // Sort by priority and timestamp
+  groundedEvents.sort((a, b) => {
+    if (b.relevance.score !== a.relevance.score) {
+      return b.relevance.score - a.relevance.score;
+    }
+    return (b.timestamp?.getTime() || 0) - (a.timestamp?.getTime() || 0);
+  });
+
+  return {
+    guild_id: guildId,
+    channel_id: 'all',
+    channel_name: `${guildName} (All Channels)`,
+    missed_messages_count: missedCount,
+    period_start: periodStart,
+    period_end: periodEnd,
+    important_events: groundedEvents,
+    channels_count: Object.keys(channelSummaries).length,
+    channel_summaries: channelSummaries,
+  };
+}
+

@@ -1,5 +1,7 @@
 import type { Client, ChatInputCommandInteraction } from 'discord.js';
 import { handleCatchup } from '../commands/catchup.js';
+import { handleVoiceCommand } from '../commands/voice.js';
+import { handleDigestCommand } from '../commands/digest.js';
 
 export function handleInteractionCreate(client: Client): void {
   client.on('interactionCreate', async (interaction) => {
@@ -9,6 +11,12 @@ export function handleInteractionCreate(client: Client): void {
       switch (interaction.commandName) {
         case 'catchup':
           await handleCatchup(interaction as ChatInputCommandInteraction);
+          break;
+        case 'reentry-voice':
+          await handleVoiceCommand(interaction as ChatInputCommandInteraction);
+          break;
+        case 'reentry-digest':
+          await handleDigestCommand(interaction as ChatInputCommandInteraction);
           break;
         default:
           console.warn(`⚠️ Unknown command: ${interaction.commandName}`);

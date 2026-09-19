@@ -133,10 +133,13 @@ export function initDatabase(): void {
       PRIMARY KEY (user_id, channel_id)
     );
 
-    -- Real Tasks Storage (Schema ready for future external task provider integration)
+    -- Real Tasks Storage
     CREATE TABLE IF NOT EXISTS tasks (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
+      provider TEXT NOT NULL DEFAULT 'github',
+      external_id TEXT,
+      external_url TEXT,
       title TEXT NOT NULL,
       description TEXT,
       due_date TEXT,
@@ -145,6 +148,11 @@ export function initDatabase(): void {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
   `);
+
+  // Ensure new columns exist if table already existed previously
+  try { db.exec(`ALTER TABLE tasks ADD COLUMN provider TEXT NOT NULL DEFAULT 'github';`); } catch {}
+  try { db.exec(`ALTER TABLE tasks ADD COLUMN external_id TEXT;`); } catch {}
+  try { db.exec(`ALTER TABLE tasks ADD COLUMN external_url TEXT;`); } catch {}
 }
 
 /** Close the database connection */
@@ -355,6 +363,49 @@ export function searchStoredMessages(
   }));
 }
 
+export function searchStoredMessagesInGuild(
+  guildId: string,
+  query: string,
+  limit: number = 20
+): DiscordMessage[] {
+  const db = getDb();
+  const pattern = `%${query}%`;
+  const rows = db.prepare(`
+    SELECT * FROM discord_messages
+    WHERE guild_id = ? AND (content LIKE ? OR author_name LIKE ?)
+    ORDER BY timestamp DESC
+    LIMIT ?
+  `).all(guildId, pattern, pattern, limit) as any[];
+
+  return rows.map(row => ({
+    id: row.id,
+    discord_message_id: row.discord_message_id,
+    guild_id: row.guild_id,
+    channel_id: row.channel_id,
+    channel_name: row.channel_name,
+    author_id: row.author_id,
+    author_name: row.author_name,
+    author_avatar: row.author_avatar,
+    content: row.content,
+    timestamp: new Date(row.timestamp),
+    reply_to_message_id: row.reply_to_message_id,
+    thread_id: row.thread_id,
+    attachments_json: row.attachments_json,
+    source_url: row.source_url,
+    created_at: new Date(row.created_at),
+    updated_at: new Date(row.updated_at),
+  }));
+}
+
+export function getGuildMessageCountSince(guildId: string, since: Date): number {
+  const db = getDb();
+  const row = db.prepare(`
+    SELECT COUNT(*) as count FROM discord_messages
+    WHERE guild_id = ? AND timestamp >= ?
+  `).get(guildId, since.toISOString()) as any;
+  return row?.count || 0;
+}
+
 // ----------------------------------------------------
 // LAYER 2: CONVERSATION EVENTS
 // ----------------------------------------------------
@@ -408,6 +459,46 @@ export function getEventsForChannel(
       ORDER BY created_at DESC
       LIMIT ?
     `).all(channelId, limit);
+  }
+
+  return rows.map(row => ({
+    event_id: row.event_id,
+    guild_id: row.guild_id,
+    channel_id: row.channel_id,
+    type: row.type as EventType,
+    title: row.title,
+    description: row.description,
+    owner: row.owner,
+    deadline: row.deadline,
+    confidence: row.confidence as ConfidenceLevel,
+    source_message_id: row.source_message_id,
+    source_url: row.source_url,
+    created_at: new Date(row.created_at),
+  }));
+}
+
+export function getEventsForGuild(
+  guildId: string,
+  since?: Date,
+  limit: number = 50
+): ConversationEvent[] {
+  const db = getDb();
+  let rows: any[];
+
+  if (since) {
+    rows = db.prepare(`
+      SELECT * FROM conversation_events
+      WHERE guild_id = ? AND created_at >= ?
+      ORDER BY created_at DESC
+      LIMIT ?
+    `).all(guildId, since.toISOString(), limit);
+  } else {
+    rows = db.prepare(`
+      SELECT * FROM conversation_events
+      WHERE guild_id = ?
+      ORDER BY created_at DESC
+      LIMIT ?
+    `).all(guildId, limit);
   }
 
   return rows.map(row => ({
@@ -597,3 +688,80 @@ export function getChannelsForGuild(guildId: string): {
     WHERE guild_id = ? ORDER BY name ASC
   `).all(guildId) as any[];
 }
+
+// ----------------------------------------------------
+// TASK PERSISTENCE
+// ----------------------------------------------------
+
+export interface StoredTask {
+  id: string;
+  user_id: string;
+  provider: string;
+  external_id: string | null;
+  external_url: string | null;
+  title: string;
+  description: string | null;
+  due_date: string | null;
+  status: string;
+  source_message_id: string | null;
+  created_at: Date;
+}
+
+export function storeTask(task: {
+  id: string;
+  userId: string;
+  provider: string;
+  externalId?: string | null;
+  externalUrl?: string | null;
+  title: string;
+  description?: string | null;
+  dueDate?: string | null;
+  status?: string;
+  sourceMessageId?: string | null;
+}): void {
+  const db = getDb();
+  db.prepare(`
+    INSERT INTO tasks (
+      id, user_id, provider, external_id, external_url,
+      title, description, due_date, status, source_message_id
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET
+      title = excluded.title,
+      description = excluded.description,
+      external_url = excluded.external_url,
+      status = excluded.status
+  `).run(
+    task.id,
+    task.userId,
+    task.provider,
+    task.externalId || null,
+    task.externalUrl || null,
+    task.title,
+    task.description || null,
+    task.dueDate || null,
+    task.status || 'pending',
+    task.sourceMessageId || null
+  );
+}
+
+export function getTasksForUser(userId: string): StoredTask[] {
+  const db = getDb();
+  const rows = db.prepare(`
+    SELECT * FROM tasks WHERE user_id = ? ORDER BY created_at DESC
+  `).all(userId) as any[];
+
+  return rows.map(r => ({
+    id: r.id,
+    user_id: r.user_id,
+    provider: r.provider,
+    external_id: r.external_id,
+    external_url: r.external_url,
+    title: r.title,
+    description: r.description,
+    due_date: r.due_date,
+    status: r.status,
+    source_message_id: r.source_message_id,
+    created_at: new Date(r.created_at),
+  }));
+}
+

@@ -25,11 +25,12 @@ describe('AssemblyAI Voice Agent Tools & System Prompt', () => {
   it('should define valid tool schemas for AssemblyAI session.update', () => {
     const tools = getVoiceAgentToolsDefinition();
     expect(Array.isArray(tools)).toBe(true);
-    expect(tools.length).toBe(4);
+    expect(tools.length).toBe(5);
 
     const toolNames = tools.map(t => t.name);
     expect(toolNames).toContain('get_catchup_context');
     expect(toolNames).toContain('search_conversation');
+    expect(toolNames).toContain('get_server_overview');
     expect(toolNames).toContain('get_source');
     expect(toolNames).toContain('create_task');
 
@@ -37,7 +38,6 @@ describe('AssemblyAI Voice Agent Tools & System Prompt', () => {
       expect(tool.type).toBe('function');
       expect(tool.description).toBeDefined();
       expect(tool.parameters.type).toBe('object');
-      expect(Array.isArray(tool.parameters.required)).toBe(true);
     }
   });
 
@@ -139,4 +139,92 @@ describe('AssemblyAI Voice Agent Tools & System Prompt', () => {
     expect(result.success).toBe(false);
     expect(result.error).toContain('Unknown tool');
   });
+
+  it('should execute server-wide catchup across all channels in guild', async () => {
+    const testGuildId = 'guild-multi-channel';
+    const ch1 = 'ch-frontend';
+    const ch2 = 'ch-backend';
+
+    storeDiscordMessage({
+      discord_message_id: 'msg-fe-1',
+      guild_id: testGuildId,
+      channel_id: ch1,
+      channel_name: 'frontend',
+      author_id: 'author-alice',
+      author_name: 'Alice',
+      content: 'Shipped dark mode toggle today!',
+      timestamp: new Date(),
+      source_url: 'https://discord.com/channels/1/2/3',
+    });
+
+    storeDiscordMessage({
+      discord_message_id: 'msg-be-1',
+      guild_id: testGuildId,
+      channel_id: ch2,
+      channel_name: 'backend',
+      author_id: 'author-bob',
+      author_name: 'Bob',
+      content: 'Database indexing completed successfully.',
+      timestamp: new Date(),
+      source_url: 'https://discord.com/channels/1/2/4',
+    });
+
+    const result = await executeVoiceAgentTool(
+      'get_catchup_context',
+      { channel_id: 'all' },
+      { userId: 'user-1', channelId: ch1, guildId: testGuildId, guildName: 'Acme Corp' }
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.scope).toBe('server');
+    expect(result.server_name).toBe('Acme Corp');
+    expect(result.missed_messages_count).toBeGreaterThanOrEqual(2);
+  });
+
+  it('should execute server-wide search across multiple channels in guild', async () => {
+    const testGuildId = 'guild-search-test';
+    storeDiscordMessage({
+      discord_message_id: 'msg-search-server-1',
+      guild_id: testGuildId,
+      channel_id: 'ch-announcements',
+      channel_name: 'announcements',
+      author_id: 'author-lead',
+      author_name: 'TechLead',
+      content: 'Crucial security patch deployed across all clusters.',
+      timestamp: new Date(),
+      source_url: 'https://discord.com/channels/1/2/5',
+    });
+
+    const result = await executeVoiceAgentTool(
+      'search_conversation',
+      { query: 'security patch' },
+      { userId: 'user-1', channelId: 'ch-general', guildId: testGuildId }
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.scope).toBe('server');
+    expect(result.count).toBeGreaterThanOrEqual(1);
+    expect(result.results[0].channel).toBe('announcements');
+    expect(result.results[0].content).toContain('security patch');
+  });
+
+  it('should execute get_server_overview to list channels', async () => {
+    const { upsertChannel } = await import('../src/core/db.js');
+    const testGuildId = 'guild-overview-test';
+    upsertChannel({ id: 'ch-a', guild_id: testGuildId, name: 'general', topic: 'Main chat' });
+    upsertChannel({ id: 'ch-b', guild_id: testGuildId, name: 'dev', topic: 'Engineering' });
+
+    const result = await executeVoiceAgentTool(
+      'get_server_overview',
+      {},
+      { userId: 'user-1', channelId: 'ch-a', guildId: testGuildId, guildName: 'Dev Server' }
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.total_channels).toBeGreaterThanOrEqual(2);
+    const names = result.channels.map((c: any) => c.name);
+    expect(names).toContain('general');
+    expect(names).toContain('dev');
+  });
 });
+

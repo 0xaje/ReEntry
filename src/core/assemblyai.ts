@@ -2,8 +2,11 @@ import { config, validateAssemblyAIConfig } from './config.js';
 import {
   getDiscordMessageBySnowflake,
   searchStoredMessages,
+  searchStoredMessagesInGuild,
+  getChannelsForGuild,
 } from './db.js';
-import { buildCatchupContext } from './relevance.js';
+import { buildCatchupContext, buildServerCatchupContext } from './relevance.js';
+import { executeCreateTask } from './tasks/index.js';
 import type {
   SourceEvidence,
   SearchResultItem,
@@ -47,31 +50,46 @@ export async function mintVoiceAgentToken(expiresInSeconds: number = 3600): Prom
 
 /**
  * Build the Voice Agent system prompt adhering to Project Re-entry principles.
+ * Gives the agent full awareness of the entire Discord server and all channels.
  */
-export function getVoiceAgentSystemPrompt(channelName: string, userName?: string): string {
-  return `You are a conversation re-entry agent for Discord channel #${channelName}.
+export function getVoiceAgentSystemPrompt(
+  channelOrServerName: string,
+  userName?: string,
+  serverName?: string
+): string {
+  const scopeDescription = serverName
+    ? `the Discord server "${serverName}" (currently stationed in #${channelOrServerName})`
+    : `Discord server and channel #${channelOrServerName}`;
+
+  return `You are a conversation re-entry agent for ${scopeDescription}.
 The user speaking with you is ${userName || 'the returning team member'}.
-Your job is to help the user understand what happened in this Discord conversation while they were away and help them re-enter the conversation with confidence.
+You have full awareness of the entire Discord server and all its channels.
+Your job is to help the user understand what happened while they were away and help them re-enter conversations with confidence.
+
+You can answer questions about:
+- What happened across the ENTIRE server/group today (all channels).
+- What happened in specific channels (e.g. #general, #announcements, #backend, etc.).
+- Search for topics, decisions, blockers, or people across the entire server.
+- List which channels exist and where the latest discussions are happening.
 
 Do not simply summarize everything.
 Prioritize:
 1. What changed.
 2. What matters to this user.
-3. What requires the user's attention.
+3. What requires the user's attention (blockers, decisions, deadlines, mentions).
 4. What action may be needed.
 
 BEHAVIORAL PRINCIPLES:
 - Every important factual statement must be grounded in retrieved Discord conversation evidence.
-- Never invent facts.
-- Never invent decisions, deadlines, tasks, people, assignments, or outcomes.
+- Never invent facts. Never invent decisions, deadlines, tasks, people, assignments, or outcomes.
 - Distinguish confirmed information from inference. If something is inferred, clearly label it as such.
 - If evidence is insufficient or missing, say that you cannot verify it.
+- When the user asks about the whole server/group, what happened today, or general updates, use get_catchup_context with channel_id="all" (or omit channel_id).
 - When the user asks "why", "who", "where", or "show me the message", use the get_source or search_conversation tools.
 - Keep spoken responses concise and natural (usually 2-4 sentences).
 - The user may interrupt you naturally at any time. If interrupted, immediately address their question.
 - When the user requests an action (like creating a task), call the create_task tool.
-- Only confirm an action after the tool reports successful execution.
-- If an action cannot be executed or fails, clearly tell the user that it was not completed.`;
+- Only confirm an action after the tool reports successful execution.`;
 }
 
 /**
@@ -82,35 +100,43 @@ export function getVoiceAgentToolsDefinition() {
     {
       type: 'function',
       name: 'get_catchup_context',
-      description: 'Retrieve the personalized catch-up context of what happened in the Discord channel while the user was away, including key changes, blockers, decisions, and unread counts.',
+      description: 'Retrieve the personalized catch-up context of what happened while the user was away. Supports single channel or entire server (all channels).',
       parameters: {
         type: 'object',
         properties: {
           channel_id: {
             type: 'string',
-            description: 'The Discord channel ID to get the catch-up context for.',
+            description: 'The Discord channel ID, or "all" to get a server-wide catch-up across all channels in the server.',
           },
         },
-        required: ['channel_id'],
       },
     },
     {
       type: 'function',
       name: 'search_conversation',
-      description: 'Search actual stored Discord messages and conversation events to find relevant messages, quotes, or discussions on a specific topic.',
+      description: 'Search actual stored Discord messages and conversation events across the entire server or within a specific channel.',
       parameters: {
         type: 'object',
         properties: {
           query: {
             type: 'string',
-            description: 'The keyword or topic to search for in the conversation history.',
+            description: 'The keyword, topic, or person to search for in conversation history.',
           },
           channel_id: {
             type: 'string',
-            description: 'The Discord channel ID to search within.',
+            description: 'Optional Discord channel ID. If omitted or "all", searches across ALL channels in the server.',
           },
         },
-        required: ['query', 'channel_id'],
+        required: ['query'],
+      },
+    },
+    {
+      type: 'function',
+      name: 'get_server_overview',
+      description: 'Get an overview of all channels in this Discord server, including active channels, topics, and message counts.',
+      parameters: {
+        type: 'object',
+        properties: {},
       },
     },
     {
@@ -166,13 +192,51 @@ export async function executeVoiceAgentTool(
     discordId?: string;
     channelId: string;
     channelName?: string;
+    guildId?: string;
+    guildName?: string;
   }
 ): Promise<Record<string, any>> {
   switch (toolName) {
     case 'get_catchup_context': {
-      const channelId = args.channel_id || userContext.channelId;
+      const channelId = args.channel_id;
+
+      // If requested "all" or omitted while in a server, perform server-wide briefing across all channels
+      if (channelId === 'all' || (!channelId && userContext.guildId)) {
+        const guildId = userContext.guildId || '';
+        const context = await buildServerCatchupContext(
+          guildId,
+          {
+            internalUserId: userContext.userId,
+            discordId: userContext.discordId,
+          },
+          undefined,
+          userContext.guildName || 'Server'
+        );
+
+        return {
+          success: true,
+          scope: 'server',
+          server_name: userContext.guildName || 'Server',
+          channels_active: context.channels_count,
+          missed_messages_count: context.missed_messages_count,
+          period_start: context.period_start.toISOString(),
+          period_end: context.period_end.toISOString(),
+          important_events: context.important_events.map(e => ({
+            type: e.type,
+            title: e.title,
+            summary: e.summary,
+            relevance: e.relevance.reason,
+            confidence: e.confidence,
+            source_message_id: e.source_message_id,
+            source_url: e.source_url,
+            author: e.author_name,
+          })),
+        };
+      }
+
+      const targetChannelId = channelId || userContext.channelId;
       const context = await buildCatchupContext(
-        channelId,
+        targetChannelId,
         {
           internalUserId: userContext.userId,
           discordId: userContext.discordId,
@@ -183,6 +247,7 @@ export async function executeVoiceAgentTool(
 
       return {
         success: true,
+        scope: 'channel',
         channel_id: context.channel_id,
         channel_name: context.channel_name,
         missed_messages_count: context.missed_messages_count,
@@ -203,13 +268,18 @@ export async function executeVoiceAgentTool(
 
     case 'search_conversation': {
       const query = String(args.query || '').trim();
-      const channelId = args.channel_id || userContext.channelId;
+      const channelId = args.channel_id;
 
       if (!query) {
         return { success: false, error: 'Search query cannot be empty' };
       }
 
-      const rawResults = searchStoredMessages(channelId, query, 10);
+      // If channel_id is not specified or 'all', search across entire guild!
+      const isServerWide = (!channelId || channelId === 'all') && Boolean(userContext.guildId);
+      const rawResults = isServerWide
+        ? searchStoredMessagesInGuild(userContext.guildId!, query, 10)
+        : searchStoredMessages(channelId || userContext.channelId, query, 10);
+
       const results: SearchResultItem[] = rawResults.map(m => ({
         message_id: m.discord_message_id,
         channel_name: m.channel_name,
@@ -221,14 +291,35 @@ export async function executeVoiceAgentTool(
 
       return {
         success: true,
+        scope: isServerWide ? 'server' : 'channel',
         query,
         count: results.length,
         results: results.map(r => ({
           message_id: r.message_id,
+          channel: r.channel_name,
           author: r.author_name,
           content: r.content,
           timestamp: r.timestamp.toISOString(),
           source_url: r.discord_jump_url,
+        })),
+      };
+    }
+
+    case 'get_server_overview': {
+      const guildId = userContext.guildId;
+      if (!guildId) {
+        return { success: false, error: 'Server information is not available in this session.' };
+      }
+
+      const channels = getChannelsForGuild(guildId);
+      return {
+        success: true,
+        server_name: userContext.guildName || 'Server',
+        total_channels: channels.length,
+        channels: channels.map(c => ({
+          id: c.id,
+          name: c.name,
+          topic: c.topic || 'General conversation',
         })),
       };
     }
@@ -275,16 +366,34 @@ export async function executeVoiceAgentTool(
     }
 
     case 'create_task': {
-      // In accordance with specification rule 15:
-      // "DO NOT IMPLEMENT create_task USING A FAKE INTERNAL TASK SYSTEM.
-      // Until a real task provider/backend is selected:
-      // - define the tool contract
-      // - implement the architecture boundary
-      // - do NOT report successful task creation"
-      return {
-        success: false,
-        error: `Task creation is not available: an external task provider (such as Linear or GitHub Issues) has not been connected to this workspace. The task "${args.title || 'Untitled'}" was not created.`,
-      };
+      const result = await executeCreateTask(
+        {
+          title: args.title || 'Untitled Task',
+          description: args.description,
+          dueDate: args.due_date,
+          sourceMessageId: args.source_message_id,
+          sourceUrl: args.source_url,
+          channelName: userContext.channelName,
+        },
+        userContext.userId
+      );
+
+      if (result.success && result.task) {
+        return {
+          success: true,
+          task_id: result.task.id,
+          provider: result.task.provider,
+          external_id: result.task.externalId,
+          task_url: result.task.externalUrl,
+          title: result.task.title,
+          message: `Successfully created ${result.task.provider === 'github' ? 'GitHub Issue' : 'Linear Issue'} #${result.task.externalId}: "${result.task.title}". Link: ${result.task.externalUrl}`,
+        };
+      } else {
+        return {
+          success: false,
+          error: result.error || 'Failed to create task in external provider.',
+        };
+      }
     }
 
     default:

@@ -26,6 +26,9 @@ export {
   upsertChannel,
   getAllGuilds,
   getChannelsForGuild,
+  searchStoredMessagesInGuild,
+  getGuildMessageCountSince,
+  getEventsForGuild,
 } from './db.js';
 export {
   extractEventsFromMessages,
@@ -34,6 +37,7 @@ export {
 export {
   scoreUserRelevance,
   buildCatchupContext,
+  buildServerCatchupContext,
   type UserIdentity,
 } from './relevance.js';
 export {
@@ -42,3 +46,16 @@ export {
   getVoiceAgentToolsDefinition,
   executeVoiceAgentTool,
 } from './assemblyai.js';
+export {
+  executeCreateTask,
+  createGitHubIssue,
+  createLinearIssue,
+  type TaskCreationParams,
+  type TaskCreationResult,
+  type CreatedTask,
+} from './tasks/index.js';
+export {
+  storeTask,
+  getTasksForUser,
+  type StoredTask,
+} from './db.js';

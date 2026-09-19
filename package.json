@@ -7,6 +7,10 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsx watch src/main.ts",
+    "dev:bot": "tsx watch src/main.ts",
+    "dev:web": "npm --prefix web run dev",
+    "dev:all": "node scripts/dev-all.js",
+    "all:dev": "node scripts/dev-all.js",
     "start": "node dist/main.js",
     "start:discord": "tsx src/discord/index.ts",
     "deploy:discord": "tsx src/discord/deploy-commands.ts",
@@ -25,15 +29,21 @@
     "node": ">=20.0.0"
   },
   "dependencies": {
+    "@discordjs/voice": "^0.19.2",
     "@google/generative-ai": "^0.24.1",
     "better-sqlite3": "^12.10.0",
     "discord.js": "^14.26.4",
     "dotenv": "^17.4.2",
-    "openai": "^6.39.0"
+    "openai": "^6.39.0",
+    "opusscript": "^0.0.8",
+    "prism-media": "^1.3.5",
+    "tweetnacl": "^1.0.3",
+    "ws": "^8.21.3"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^25.9.1",
+    "@types/ws": "^8.18.1",
     "tsx": "^4.22.3",
     "typescript": "^5.8.2",
     "vitest": "^2.1.8"

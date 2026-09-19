@@ -31,6 +31,14 @@ export const config = {
     model: optional('AI_MODEL', optional('OPENAI_MODEL', optional('MIMO_MODEL', 'gpt-4o-mini'))),
   },
 
+  // Task Backends (GitHub Issues & Linear)
+  tasks: {
+    githubToken: optional('GITHUB_TOKEN'),
+    githubRepo: optional('GITHUB_REPO'), // e.g. "owner/repo"
+    linearApiKey: optional('LINEAR_API_KEY'),
+    linearTeamId: optional('LINEAR_TEAM_ID'),
+  },
+
   // Ingestion & Catch-up Settings
   summaryMaxMessages: parseInt(optional('SUMMARY_MAX_MESSAGES', '100'), 10),
   logLevel: optional('LOG_LEVEL', 'info'),

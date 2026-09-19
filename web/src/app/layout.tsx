@@ -26,7 +26,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en" className="dark" suppressHydrationWarning>
       <body className={`${inter.variable} ${ibmPlexMono.variable} antialiased font-sans bg-[#08296a] text-[#f4f8ff]`}>
         <div className="canvas-grid" />
         {children}

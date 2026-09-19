@@ -112,7 +112,25 @@ function createDb(): Database.Database {
       last_active_at DATETIME NOT NULL,
       PRIMARY KEY (user_id, channel_id)
     );
+
+    CREATE TABLE IF NOT EXISTS tasks (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      provider TEXT NOT NULL DEFAULT 'github',
+      external_id TEXT,
+      external_url TEXT,
+      title TEXT NOT NULL,
+      description TEXT,
+      due_date TEXT,
+      status TEXT NOT NULL DEFAULT 'pending',
+      source_message_id TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
   `);
+
+  try { db.exec(`ALTER TABLE tasks ADD COLUMN provider TEXT NOT NULL DEFAULT 'github';`); } catch {}
+  try { db.exec(`ALTER TABLE tasks ADD COLUMN external_id TEXT;`); } catch {}
+  try { db.exec(`ALTER TABLE tasks ADD COLUMN external_url TEXT;`); } catch {}
 
   return db;
 }

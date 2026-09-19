@@ -141,16 +141,23 @@ AUTH_SECRET=your-random-nextauth-secret
 ```
 
 ### 4. Run the Application
-In separate terminals:
 
-**Terminal 1 — Discord Ingestion Gateway**:
+**Option A — Run Both Together in One Command:**
 ```bash
-npm run dev
+npm run dev:all
+```
+*(or `npm run all:dev`)* — Runs both the Discord Bot (`[BOT]`) and Next.js Web App (`[WEB]`) simultaneously with colored logs and clean Ctrl+C shutdown.
+
+**Option B — Run in Separate Terminals:**
+
+**Terminal 1 — Discord Bot & Voice Integration:**
+```bash
+npm run dev:bot
 ```
 
-**Terminal 2 — Web Command Center**:
+**Terminal 2 — Web Dashboard & Voice UI:**
 ```bash
-npm run dev --prefix web
+npm run dev:web
 ```
 Open `http://localhost:3000` in your browser.
 
@@ -158,13 +165,16 @@ Open `http://localhost:3000` in your browser.
 
 ## 🧪 Automated Testing
 
-Project Re-entry includes 22 automated tests covering all integration boundaries:
+Project Re-entry includes **44 automated tests** across 7 test suites covering all integration boundaries:
 ```bash
 npm test
 ```
 - Message persistence & query engine
 - Event extraction with confidence ratings
 - User relevance scoring & catch-up context
+- Discord Voice Channel (`/reentry-voice`) & Audio DSP
+- Real Task Backends (GitHub Issues & Linear)
+- Daily Digest Webhook & Morning DM (`/reentry-digest`)
 - Voice Agent tools & failure handling
 
 ---

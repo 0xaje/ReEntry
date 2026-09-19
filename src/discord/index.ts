@@ -35,6 +35,7 @@ export async function startDiscord(): Promise<Client> {
       GatewayIntentBits.Guilds,
       GatewayIntentBits.GuildMessages,
       GatewayIntentBits.MessageContent,
+      GatewayIntentBits.GuildVoiceStates,
     ],
     partials: [Partials.Channel],
   });
